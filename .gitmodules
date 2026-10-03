@@ -1,0 +1,7 @@
+[submodule "lib/CommonLibSSE-NG"]
+	path = lib/CommonLibSSE-NG
+	url = https://github.com/alandtse/CommonLibVR.git
+	branch = ng
+[submodule "lib/SKSE-Menu-Framework-3-API"]
+	path = lib/SKSE-Menu-Framework-3-API
+	url = https://github.com/QTR-Modding/SKSE-Menu-Framework-3-API.git
