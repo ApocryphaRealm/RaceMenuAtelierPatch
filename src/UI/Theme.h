@@ -18,38 +18,39 @@ namespace RMA::UI
 	namespace Color
 	{
 		// Layered slate surfaces (each level a step lighter), warm gold for
-		// actions and changes, desaturated hues to tell groups apart.
-		inline constexpr ImU32 Window = IM_COL32(17, 19, 24, 242);
-		inline constexpr ImU32 Panel = IM_COL32(30, 34, 42, 235);
-		inline constexpr ImU32 PanelHover = IM_COL32(40, 45, 55, 245);
-		inline constexpr ImU32 Row = IM_COL32(29, 33, 40, 240);
-		inline constexpr ImU32 RowAlt = IM_COL32(35, 39, 48, 240);
-		inline constexpr ImU32 RowHover = IM_COL32(45, 51, 62, 250);
-		inline constexpr ImU32 RowBorder = IM_COL32(78, 86, 102, 110);
-		inline constexpr ImU32 Frame = IM_COL32(44, 49, 60, 255);
-		inline constexpr ImU32 FrameHover = IM_COL32(56, 62, 75, 255);
-		inline constexpr ImU32 FrameActive = IM_COL32(66, 73, 88, 255);
-		inline constexpr ImU32 Border = IM_COL32(74, 82, 98, 170);
-		inline constexpr ImU32 BorderStrong = IM_COL32(214, 172, 98, 230);
-		inline constexpr ImU32 Track = IM_COL32(11, 13, 17, 235);
+		// actions and changes, desaturated hues to tell groups apart. These are the
+		// defaults; an optional theme file replaces them at load (LoadTheme).
+		inline ImU32 Window = IM_COL32(17, 19, 24, 242);
+		inline ImU32 Panel = IM_COL32(30, 34, 42, 235);
+		inline ImU32 PanelHover = IM_COL32(40, 45, 55, 245);
+		inline ImU32 Row = IM_COL32(29, 33, 40, 240);
+		inline ImU32 RowAlt = IM_COL32(35, 39, 48, 240);
+		inline ImU32 RowHover = IM_COL32(45, 51, 62, 250);
+		inline ImU32 RowBorder = IM_COL32(78, 86, 102, 110);
+		inline ImU32 Frame = IM_COL32(44, 49, 60, 255);
+		inline ImU32 FrameHover = IM_COL32(56, 62, 75, 255);
+		inline ImU32 FrameActive = IM_COL32(66, 73, 88, 255);
+		inline ImU32 Border = IM_COL32(74, 82, 98, 170);
+		inline ImU32 BorderStrong = IM_COL32(214, 172, 98, 230);
+		inline ImU32 Track = IM_COL32(11, 13, 17, 235);
 
-		inline constexpr ImU32 Text = IM_COL32(234, 231, 223, 255);
-		inline constexpr ImU32 TextDim = IM_COL32(164, 170, 182, 255);
-		inline constexpr ImU32 TextFaint = IM_COL32(112, 119, 132, 255);
-		inline constexpr ImU32 Value = IM_COL32(132, 196, 206, 255);
+		inline ImU32 Text = IM_COL32(234, 231, 223, 255);
+		inline ImU32 TextDim = IM_COL32(164, 170, 182, 255);
+		inline ImU32 TextFaint = IM_COL32(112, 119, 132, 255);
+		inline ImU32 Value = IM_COL32(132, 196, 206, 255);
 
-		inline constexpr ImU32 Gold = IM_COL32(214, 172, 98, 255);
-		inline constexpr ImU32 GoldBright = IM_COL32(244, 208, 138, 255);
-		inline constexpr ImU32 GoldDim = IM_COL32(140, 110, 62, 255);
-		inline constexpr ImU32 GoldWash = IM_COL32(214, 172, 98, 40);
-		inline constexpr ImU32 GoldWashStrong = IM_COL32(214, 172, 98, 84);
-		inline constexpr ImU32 Danger = IM_COL32(222, 102, 86, 255);
-		inline constexpr ImU32 Ok = IM_COL32(130, 190, 110, 255);
-		inline constexpr ImU32 Shadow = IM_COL32(0, 0, 0, 170);
-		inline constexpr ImU32 Clear = IM_COL32(0, 0, 0, 0);
+		inline ImU32 Gold = IM_COL32(214, 172, 98, 255);
+		inline ImU32 GoldBright = IM_COL32(244, 208, 138, 255);
+		inline ImU32 GoldDim = IM_COL32(140, 110, 62, 255);
+		inline ImU32 GoldWash = IM_COL32(214, 172, 98, 40);
+		inline ImU32 GoldWashStrong = IM_COL32(214, 172, 98, 84);
+		inline ImU32 Danger = IM_COL32(222, 102, 86, 255);
+		inline ImU32 Ok = IM_COL32(130, 190, 110, 255);
+		inline ImU32 Shadow = IM_COL32(0, 0, 0, 170);
+		inline ImU32 Clear = IM_COL32(0, 0, 0, 0);
 
 		// group / category hues: equal lightness, about 20 points under full saturation
-		inline constexpr std::array<ImU32, 10> Hues{
+		inline std::array<ImU32, 10> Hues{
 			IM_COL32(110, 168, 222, 255),  // steel blue
 			IM_COL32(214, 150, 96, 255),   // copper
 			IM_COL32(112, 192, 168, 255),  // teal
@@ -61,7 +62,26 @@ namespace RMA::UI
 			IM_COL32(204, 132, 200, 255),  // mauve
 			IM_COL32(168, 176, 196, 255),  // pewter
 		};
+
+		// formerly literals in the drawing code, named so a theme can set them
+		inline ImU32 PopupBg = IM_COL32(24, 27, 34, 250);
+		inline ImU32 HeaderHover = IM_COL32(214, 172, 98, 60);
+		inline ImU32 ScrollGrab = IM_COL32(90, 98, 116, 150);
+		inline ImU32 ScrollGrabHover = IM_COL32(120, 130, 150, 200);
+		inline ImU32 TextSelected = IM_COL32(214, 172, 98, 90);
+		inline ImU32 ModalDim = IM_COL32(0, 0, 0, 120);
+		inline ImU32 TileText = IM_COL32(214, 218, 226, 255);
+		inline ImU32 OnAccent = IM_COL32(28, 20, 10, 255);
+		inline ImU32 KnobHover = IM_COL32(250, 246, 236, 255);
 	}
+
+	// the theme's corner factor: 1 = Atelier's rounded corners, 0 = square (Norden)
+	inline float RoundingScale = 1.0f;
+	inline float Round(float a_radius) { return a_radius * RoundingScale; }
+
+	// reads Data\SKSE\Plugins\RaceMenuAtelier\theme.ini when it exists (a theme package ships it); without it the
+	// defaults above stay. Logs every key it applies.
+	void LoadTheme();
 
 	inline ImVec4 ToVec4(ImU32 a_color)
 	{
