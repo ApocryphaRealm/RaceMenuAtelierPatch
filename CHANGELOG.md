@@ -19,7 +19,7 @@ mixed with the race category. So you'd have races and classes in the same pool o
 ### Added
 - Theme file: when `SKSE\Plugins\RaceMenuAtelier\theme.ini` exists, Atelier's colours and corner radius come from it;
   without it nothing changes. Every colour Atelier draws with is a named key (#RRGGBB or #RRGGBBAA), `fRounding` scales
-  the corners. The Norden Black patch ships one (`themes\norden-black.ini`).
+  the corners. The Norden Black patch ships one (repo RaceMenuAtelierNordenBlack, `themes/norden-black.ini`).
 - DevBench tool `atelier.control`: state (categories, choice lists with the current pick, races, the bottom bar's
   picks), choose, race, category, refresh.
 
