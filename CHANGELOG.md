@@ -3,7 +3,7 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
-## 1.0.0 - 2026-10-04 - untested
+## 1.0.0 - 2026-10-04 - working
 
 Asked for by the owner, 2026-10-04: Apprentice - A Class Overhaul's categories show in Atelier, "but their contents are
 mixed with the race category. So you'd have races and classes in the same pool of options, which is wrong."
@@ -32,5 +32,8 @@ mixed with the race category. So you'd have races and classes in the same pool o
   ClassMenu_Callback CLASS001 and TraitMenu_Callback TRAIT027, and MAG_ClassTracker read 1.
 - Norden Black theme.ini: logged "theme 'Norden Black' loaded ... 42 value(s)"; the editor drew black panels, silver
   lines and accents, square corners (frames seen at the CLASS and FACE categories).
+- The package itself (2026-10-04, installed from 7. current test builds): no theme file -> "no theme file ...; Atelier's
+  own colours" and Atelier's own look; the race grid 18 races; `choose Battlemage` -> Apprentice "Selected Class
+  callback: CLASS005", the race stayed Nord DZ.
 - Not yet seen: the trait tracker global read back (the console capture of a second command came back empty), and the
   theme in the owner's eyes at full resolution.
