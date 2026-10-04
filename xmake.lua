@@ -3,7 +3,7 @@ set_xmakever("3.0.0")
 includes("lib/CommonLibSSE-NG")
 
 set_project("RaceMenuAtelier")
-set_version("1.0.0")
+set_version("1.0.1")
 set_license("GPL-3.0")
 set_languages("c++23")
 set_warnings("allextra")

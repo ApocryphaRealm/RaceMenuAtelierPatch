@@ -79,7 +79,7 @@ namespace RMA::UI
 			std::vector<int>         categoryCount;
 			int                      visibleRows{ 0 };
 			int                      changedTotal{ 0 };
-			std::unordered_set<double> partRequested;
+			std::unordered_map<double, double> partRequested;  // sliderID -> value asked for
 
 			// value typing
 			std::string editKey;
@@ -585,14 +585,47 @@ namespace RMA::UI
 			return g;
 		}
 
+		// Vanilla part sliders (ChangeHeadPart) and RaceMenu's own part lists
+		// (whole-number ChangeDoubleMorph sliders) can name their current part.
+		bool MayBePart(const Entry& a_entry)
+		{
+			return a_entry.sliderID >= 0.0 &&
+			       (a_entry.callback == "ChangeHeadPart" || (a_entry.callback == "ChangeDoubleMorph" && a_entry.interval >= 1.0));
+		}
+
 		void RequestPartName(Model& a_model, const Entry& a_entry)
 		{
-			if (a_entry.callback != "ChangeHeadPart" || a_entry.sliderID < 0.0) {
+			if (!MayBePart(a_entry)) {
 				return;
 			}
-			if (!a_model.partNames.contains(a_entry.sliderID) && s.partRequested.insert(a_entry.sliderID).second) {
-				Bridge::QuerySliderInfo(a_entry.sliderID, a_entry.position);
+			// presets, undo and refreshes move the value too, so ask again whenever it differs
+			const auto known = a_model.partNames.find(a_entry.sliderID);
+			if (known != a_model.partNames.end() && known->second.value == a_entry.position) {
+				return;
 			}
+			const auto asked = s.partRequested.find(a_entry.sliderID);
+			if (asked != s.partRequested.end() && asked->second == a_entry.position) {
+				return;
+			}
+			s.partRequested[a_entry.sliderID] = a_entry.position;
+			Bridge::QuerySliderInfo(a_entry.sliderID, a_entry.position);
+		}
+
+		const PartInfo* PartOf(const Model& a_model, const Entry& a_entry)
+		{
+			const auto it = a_model.partNames.find(a_entry.sliderID);
+			return it != a_model.partNames.end() && !it->second.name.empty() ? &it->second : nullptr;
+		}
+
+		std::string PartLabel(const PartInfo& a_part)
+		{
+			return Settings::Get().showTechnicalNames ? a_part.name : Text::Humanise(a_part.name, true);
+		}
+
+		// RaceMenu's own wording: "Plugin.esp (partName)"
+		std::string PartTooltip(const PartInfo& a_part)
+		{
+			return a_part.plugin.empty() ? a_part.name : std::format("{} ({})", a_part.plugin, a_part.name);
 		}
 
 		void OpenHeadPartBrowser(const Entry& a_entry)
@@ -673,6 +706,21 @@ namespace RMA::UI
 				}
 			}
 
+			// the part a part-list slider is on
+			RequestPartName(a_model, a_entry);
+			if (const auto* part = PartOf(a_model, a_entry); part && !editing) {
+				const auto  text = W::Ellipsize(PartLabel(*part), (right - (a_pos.x + g.padX)) * 0.45f);
+				const auto  size = im::CalcTextSize(text.c_str());
+				const float x = labelRight - size.x;
+				dl::AddText(list, { x, lineY }, a_changed ? Color::GoldBright : Color::Text, text.c_str());
+				im::SetCursorScreenPos({ x, lineY });
+				im::InvisibleButton("##partname", { size.x, g.line });
+				if (im::IsItemHovered()) {
+					W::Tooltip(PartTooltip(*part).c_str());
+				}
+				labelRight = x - g.u * 0.6f;
+			}
+
 			// colour swatch of colour sliders
 			if (a_entry.hasColor) {
 				const ImVec2 sw{ g.u * 1.7f, g.line * 0.8f };
@@ -743,8 +791,8 @@ namespace RMA::UI
 			const bool  headPart = a_entry.callback == "ChangeHeadPart";
 			float       labelRight = right;
 
+			RequestPartName(a_model, a_entry);
 			if (headPart) {
-				RequestPartName(a_model, a_entry);
 				const float bw = g.line;
 				labelRight -= bw;
 				im::SetCursorScreenPos({ labelRight, lineY });
@@ -778,12 +826,8 @@ namespace RMA::UI
 			const auto counterSize = W::SmallTextSize(counter.c_str());
 			W::SmallText(list, { boxX + boxW - counterSize.x - g.u * 0.5f, ctrlY + (g.ctrl - counterSize.y) * 0.5f }, Color::TextFaint, counter.c_str());
 
-			std::string main;
-			if (headPart) {
-				if (const auto it = a_model.partNames.find(a_entry.sliderID); it != a_model.partNames.end() && !it->second.empty()) {
-					main = Text::Humanise(it->second, true);
-				}
-			}
+			const auto* part = PartOf(a_model, a_entry);
+			std::string main = part ? PartLabel(*part) : std::string();
 			if (main.empty()) {
 				main = std::format("Option {}", cur);
 			}
@@ -794,7 +838,9 @@ namespace RMA::UI
 				OpenHeadPartBrowser(a_entry);
 			}
 			if (hovered && headPart) {
-				W::Tooltip("Click to browse every available part");
+				W::Tooltip(part ? std::format("{}\nClick to browse every available part", PartTooltip(*part)).c_str() : "Click to browse every available part");
+			} else if (hovered && part) {
+				W::Tooltip(PartTooltip(*part).c_str());
 			}
 
 			im::SetCursorScreenPos({ right - g.ctrl, ctrlY });
