@@ -3,7 +3,7 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
-## Unreleased
+## 1.0.0 - 2026-10-04 - untested
 
 Asked for by the owner, 2026-10-04: Apprentice - A Class Overhaul's categories show in Atelier, "but their contents are
 mixed with the race category. So you'd have races and classes in the same pool of options, which is wrong."

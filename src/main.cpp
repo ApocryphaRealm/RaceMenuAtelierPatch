@@ -3,6 +3,7 @@
 #include "Settings.h"
 #include "UI/Theme.h"
 #include "UI/UI.h"
+#include "utils/AddressLibraryGuard.h"
 
 namespace
 {
@@ -50,6 +51,12 @@ namespace
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 {
 	InitializeLogging();
+
+	// Address Library pre-check (the guard every mod of ours carries), BEFORE SKSE::Init, which opens the Address
+	// Library itself: a missing file gets a message naming it, not CommonLib's bare failure, and the plugin loads inert
+	if (!AddressLibraryGuard::Guard("RaceMenu Atelier")) {
+		return true;
+	}
 
 	const auto* plugin = SKSE::PluginDeclaration::GetSingleton();
 	logger::info("{} {} is loading", plugin->GetName(), plugin->GetVersion().string());
