@@ -1,5 +1,6 @@
 .xmake/
 build/
-dist/
+dist/RaceMenu Atelier/
+dist/*.7z
 vsxmake*/
 *.log

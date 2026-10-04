@@ -46,8 +46,8 @@ end)
 target("RaceMenuAtelier", function()
     add_rules("commonlibsse-ng.plugin", {
         name = "RaceMenuAtelier",
-        author = "RaceMenuAtelier",
-        description = "Native RaceMenu interface built on SKSE Menu Framework"
+        author = "emberchain; patched by ApocryphaRealm",
+        description = "Native RaceMenu interface built on SKSE Menu Framework - Apprentice classes/traits and theme patch"
     })
     add_rules("rma.deploy")
     add_packages("nlohmann_json")

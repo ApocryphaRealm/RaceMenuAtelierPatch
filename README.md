@@ -1,57 +1,48 @@
-# RaceMenu Atelier
+# RaceMenu Atelier - Apprentice Patch
 
-A native C++ interface for RaceMenu, drawn with Dear ImGui through
-[SKSE Menu Framework](https://www.nexusmods.com/skyrimspecialedition/mods/120352).
+A patched build of [RaceMenu Atelier](https://www.nexusmods.com/skyrimspecialedition/mods/193865) (by emberchain,
+GPL-3.0, [emberchain/RaceMenuAtelier](https://github.com/emberchain/RaceMenuAtelier) at `8db73c5`, its 1.0.0) that makes
+it work with [Apprentice - A Class Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/169288) (by Simon Magus
+and LambdaCDM). This repository is a fork: the upstream history is kept, and every change is a commit on top of it.
 
-RaceMenu itself is left untouched. Its Scaleform menu stays loaded underneath, hidden, and is used as
-the data source and action target: Atelier reads the categories and sliders RaceMenu exposes and sends
-every change back through RaceMenu's own delegate calls, mod events and `CharGen` functions. Press
-**F4** in the editor to switch to RaceMenu's own interface and back at any time.
+## The problem it fixes
 
-## Features
+Apprentice adds its classes and traits to RaceMenu's race list: two categories (`$APPCLASS`, `$APPTRAIT`) and one
+race-type row per class and trait, each filed under its own category flag and carrying an `isClass` / `isTrait` mark
+and its class number in `raceID`. It replaces RaceMenu's item-press handler, so a click on such a row records the pick
+(sent as `ClassMenu_Callback` / `TraitMenu_Callback` when the menu closes).
 
-- One searchable editor for every slider, with a "changed only" filter, undo/redo and per-slider reset
-- Typed values, optional overdrive past the registered range of custom body morphs
-- Colour editor with palette and recent colours; texture browser for tints, paints and overlays
-- Head part browser with search by name, form ID or plugin
-- Scene panel: drag to rotate, wheel to zoom (face / full body), light toggle, undress / redress,
-  pose freeze, a small set of idle poses
-- Preset browser that shows which plugins, head parts and tint textures a `.jslot` uses before loading it
-- BodySlide preset export (CBBE 3BA, HIMBO) straight from the current morphs
-- No ESP, no Papyrus, no replaced RaceMenu files
+Atelier 1.0.0 drew every race-type row in one race grid, whatever its category - classes and traits sat in the pool
+with the races - and a click called `ChangeRace(raceID)` directly. A class's `raceID` is its class number, so choosing
+"Agent" (0) turned the character into the race at index 0 (Argonian) and recorded no class.
 
-## Requirements
+## What the patch changes
 
-- Skyrim SE / AE with SKSE
-- [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
-- [RaceMenu](https://www.nexusmods.com/skyrimspecialedition/mods/19080)
-- [SKSE Menu Framework](https://www.nexusmods.com/skyrimspecialedition/mods/120352) 3.x and its requirements
+- A race-type entry outside RaceMenu's Race category is a **choice** of the category it is filed under. Each such
+  category gets its own tiles (with the entry's description as the tooltip), the race grid holds only races, and a
+  click goes through the menu's own `onItemPress({index})` - Apprentice's handler - never `ChangeRace`. The current
+  pick is marked, read from the class/trait values Apprentice shows in RaceMenu's bottom bar. Nothing in this is named
+  after Apprentice except that read, so any mod that adds a list the same way is handled the same way.
+- **Themes**: Atelier's colours and corner radius are read from `SKSE\Plugins\RaceMenuAtelier\theme.ini` when that
+  file exists (the "RaceMenu Atelier - Norden Black" patch ships one); without it Atelier looks exactly as before.
+- **DevBench tool `atelier.control`** (for testing): the categories, the choice lists with the current pick, `choose`,
+  `race`, `category`, `refresh`.
+
+Everything else is Atelier 1.0.0 unchanged.
 
 ## Building
 
-Requires Visual Studio 2022 (C++ workload) and [xmake](https://xmake.io) 3.0+.
+Visual Studio 2022+ (C++ workload) and xmake 3.0+:
 
 ```bat
-git clone --recursive https://github.com/emberchain/RaceMenuAtelier.git
-cd RaceMenuAtelier
+git submodule update --init --recursive
 xmake f -m releasedbg --skyrim_vr=n
 xmake build RaceMenuAtelier
-powershell -ExecutionPolicy Bypass -File tools\package.ps1
 ```
 
-`tools\package.ps1` stages `dist\RaceMenu Atelier\` in the Data layout and packs a `.7z` when 7-Zip
-is installed. Set `RMA_DEPLOY_DIR` to a mod folder to have every build copied there.
+The DLL is `build\windows\x64\releasedbg\RaceMenuAtelier.dll` - the same file name as Atelier's, so the patch replaces it.
 
-## Settings
+## Licence
 
-`Data\SKSE\Plugins\RaceMenuAtelier.ini` - most options are also editable from the Options popup in game.
-
-## Credits
-
-- expired6978 - RaceMenu
-- Thiago and Quantumyilmaz - SKSE Menu Framework
-- The SKSE team, CommonLibSSE-NG contributors, Dear ImGui
-
-## License
-
-GPL-3.0, see [LICENSE](LICENSE). `lib/SKSE-Menu-Framework-3-API` keeps its own LGPL-2.1 license.
+GPL-3.0, as RaceMenu Atelier (see `LICENSE` and `NOTICE.md`). `lib/SKSE-Menu-Framework-3-API` keeps its LGPL-2.1 licence;
+`src/DevBench/DevBenchAPI.*` is MIT (`src/DevBench/DevBenchAPI.LICENSE.txt`).
