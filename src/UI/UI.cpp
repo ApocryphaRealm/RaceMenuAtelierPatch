@@ -44,7 +44,8 @@ namespace RMA::UI
 			{
 				Header,
 				Row,
-				Races
+				Races,
+				Choices  // another mod's list (Apprentice's classes or traits), as tiles of its own
 			};
 
 			Kind        kind{ Kind::Row };
@@ -53,6 +54,7 @@ namespace RMA::UI
 			bool        shortLabel{ false };
 			ImU32       hue{ Color::Hues[0] };
 			int         stripe{ 0 };  // alternates the row tone inside a run
+			std::vector<std::size_t> members;  // Choices: the entries, in list order
 		};
 
 		struct State
@@ -499,8 +501,17 @@ namespace RMA::UI
 			}
 
 			bool racesPlaced = false;
+			int  choiceItem = -1;
 			for (std::size_t v = 0; v < visible.size(); ++v) {
 				const auto& e = a_model.entries[visible[v]];
+				if (e.control == Control::Choice) {
+					if (choiceItem < 0) {
+						choiceItem = static_cast<int>(s.items.size());
+						s.items.push_back({ Item::Kind::Choices });
+					}
+					s.items[choiceItem].members.push_back(visible[v]);
+					continue;
+				}
 				if (e.control == Control::Race) {
 					if (!racesPlaced) {
 						s.items.push_back({ Item::Kind::Races });
@@ -520,7 +531,7 @@ namespace RMA::UI
 					std::size_t run = 1;
 					while (v + run < visible.size()) {
 						const auto& next = a_model.entries[visible[v + run]];
-						if (next.group != e.group || next.control == Control::Race) {
+						if (next.group != e.group || next.control == Control::Race || next.control == Control::Choice) {
 							break;
 						}
 						++run;
@@ -946,6 +957,59 @@ namespace RMA::UI
 				}
 				if (clicked && !current) {
 					a_model.ChangeRace(e);
+				}
+				im::PopID();
+			}
+			im::SetCursorScreenPos(origin + ImVec2{ 0.0f, ((index + a_columns - 1) / a_columns) * (a_cardH + a_gap) });
+		}
+
+		// another mod's list on the race list (Apprentice's classes or traits): the same tiles as the races, the
+		// entry's own description as the tooltip, the menu's own item-press handler on a click
+		void RenderChoices(Model& a_model, const std::vector<std::size_t>& a_members, float a_width, float a_cardH, float a_gap, int a_columns)
+		{
+			auto*       list = im::GetWindowDrawList();
+			const float u = U();
+			const float cardW = std::floor((a_width - a_gap * (a_columns - 1)) / a_columns);
+			const auto  origin = im::GetCursorScreenPos();
+			int         index = 0;
+			for (const auto i : a_members) {
+				if (i >= a_model.entries.size()) {
+					continue;
+				}
+				auto&        e = a_model.entries[i];
+				const int    col = index % a_columns;
+				const int    row = index / a_columns;
+				const ImVec2 pos = origin + ImVec2{ col * (cardW + a_gap), row * (a_cardH + a_gap) };
+				const ImVec2 max = pos + ImVec2{ cardW, a_cardH };
+				const ImU32  tint = (row + col) % 2 ? Color::Hues[3] : Color::Hues[1];
+				++index;
+
+				im::PushID(e.key.c_str());
+				im::SetCursorScreenPos(pos);
+				const bool  clicked = im::InvisibleButton("##choice", { cardW, a_cardH });
+				const bool  hovered = im::IsItemHovered();
+				const bool  current = a_model.IsCurrentChoice(e);
+				const float rounding = u * 0.3f;
+
+				dl::AddRectFilled(list, pos, max, hovered ? Color::RowHover : Color::Row, rounding, 0);
+				dl::AddRectFilled(list, pos, max, current ? Color::GoldWashStrong : WithAlpha(tint, hovered ? 0.22f : 0.12f), rounding, 0);
+				dl::AddRectFilled(list, pos, { pos.x + std::max(3.0f, std::floor(u * 0.16f)), max.y }, current ? Color::Gold : tint, rounding, ImGuiMCP::ImDrawFlags_RoundCornersLeft);
+				dl::AddRect(list, pos, max, current ? Color::BorderStrong : Color::RowBorder, rounding, 0, current ? 1.5f : 1.0f);
+
+				float textX = pos.x + u * 0.65f;
+				if (current) {
+					DrawIcon(list, { textX + u * 0.35f, pos.y + a_cardH * 0.5f }, Icon::Check, Color::GoldBright);
+					textX += u * 1.1f;
+				}
+				const auto name = W::Ellipsize(e.label, max.x - textX - u * 0.4f);
+				const auto ns = im::CalcTextSize(name.c_str());
+				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : IM_COL32(214, 218, 226, 255), name.c_str());
+				if (hovered) {
+					const auto tip = e.description.empty() ? (current ? std::string("Chosen") : "Choose " + e.label) : e.label + "\n\n" + e.description;
+					W::Tooltip(tip.c_str());
+				}
+				if (clicked && !current) {
+					a_model.PressChoice(e);
 				}
 				im::PopID();
 			}
@@ -1656,6 +1720,9 @@ namespace RMA::UI
 					h = headerH;
 				} else if (item.kind == Item::Kind::Races) {
 					h = ((races + raceColumns - 1) / raceColumns) * (cardH + gap) - gap;
+				} else if (item.kind == Item::Kind::Choices) {
+					const int n = static_cast<int>(item.members.size());
+					h = ((n + raceColumns - 1) / raceColumns) * (cardH + gap) - gap;
 				}
 				const bool inView = y + h >= scroll - g.height && y <= scroll + view + g.height;
 				if (inView) {
@@ -1677,6 +1744,9 @@ namespace RMA::UI
 						}
 					case Item::Kind::Races:
 						RenderRaces(a_model, width, cardH, gap, raceColumns);
+						break;
+					case Item::Kind::Choices:
+						RenderChoices(a_model, item.members, width, cardH, gap, raceColumns);
 						break;
 					case Item::Kind::Row:
 						RenderRow(a_model, a_model.entries[item.entry], item, g, pos, width);
@@ -2134,6 +2204,37 @@ namespace RMA::UI
 		// ------------------------------------------------------------------
 		// SKSE Menu Framework callbacks
 
+		void __stdcall RenderWindows();
+	}
+
+	// both run on DevBench's listener thread; the model lock is the one every frame holds while it draws
+	bool SelectCategoryNamed(const std::string& a_name)
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		if (a_name.empty()) {
+			SelectCategory(nullptr);
+			return true;
+		}
+		const auto want = Text::Lower(a_name);
+		for (const auto& c : model.categories) {
+			if (Text::Lower(c.label) == want || Text::Lower(c.raw) == want) {
+				SelectCategory(&c);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	std::string CurrentCategory()
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		return s.categoryRaw;
+	}
+
+	namespace
+	{
 		void __stdcall RenderWindows()
 		{
 			auto&             model = Model::Get();

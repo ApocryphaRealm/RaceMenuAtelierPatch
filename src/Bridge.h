@@ -28,6 +28,7 @@ namespace RMA::Bridge
 	void SetColor(const EntryRef& a_ref, ColorKind a_kind, int a_slot, std::uint32_t a_argb);
 	void SetTexture(const EntryRef& a_ref, bool a_overlay, int a_slot, const std::string& a_texture);
 	void ChangeRace(int a_raceID);
+	void PressEntry(const EntryRef& a_ref);  // the menu's own onItemPress for one entry (choices)
 	void QuerySliderInfo(double a_sliderID, double a_value);
 	void QueryHeadParts(double a_sliderID);
 

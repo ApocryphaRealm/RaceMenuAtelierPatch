@@ -165,7 +165,10 @@ namespace RMA
 			a_entry.canOverdrive = a_entry.type == Defs::kTypeSlider && bodyCallback && a_entry.custom && a_entry.interval < 1.0;
 
 			if (a_entry.type == Defs::kTypeRace) {
-				a_entry.control = Control::Race;
+				// a race-type entry outside the Race category is another mod's list riding on the race list
+				// (Apprentice - A Class Overhaul: classes and traits, each with a raceID that is NOT a race)
+				const bool race = a_entry.filterFlag <= 0 || (a_entry.filterFlag & Defs::kCategoryRace) != 0;
+				a_entry.control = race ? Control::Race : Control::Choice;
 			} else if (a_entry.type >= Defs::kTypeWarPaint && a_entry.type <= Defs::kTypeFacePaint) {
 				a_entry.control = Control::Paint;
 			} else if (IsSexEntry(a_entry)) {
@@ -321,7 +324,7 @@ namespace RMA
 
 	bool Entry::IsChanged() const
 	{
-		if (control == Control::Race) {
+		if (control == Control::Race || control == Control::Choice) {
 			return false;
 		}
 		if (std::abs(position - initialPosition) > 1e-4) {
@@ -387,6 +390,7 @@ namespace RMA
 		for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
 			byKey[entries[i].key] = i;
 		}
+		picked = std::move(a_snapshot.picked);
 
 		categories.clear();
 		for (auto& category : a_snapshot.categories) {
@@ -413,6 +417,8 @@ namespace RMA
 
 	void Model::ResetSession()
 	{
+		chosen.clear();
+		picked.clear();
 		categories.clear();
 		entries.clear();
 		for (auto& list : makeup) {
@@ -529,6 +535,23 @@ namespace RMA
 		SetStatus("Changing race to " + a_entry.label + "...");
 	}
 
+	// A choice goes through the menu's own item-press handler, which the mod that added the list owns; its
+	// raceID is not a race, so ChangeRace would turn the character into whatever race sits at that index
+	void Model::PressChoice(const Entry& a_entry)
+	{
+		Bridge::PressEntry(a_entry.Ref());
+		chosen[a_entry.filterFlag] = a_entry.key;
+		SetStatus("Chose " + a_entry.label);
+	}
+
+	bool Model::IsCurrentChoice(const Entry& a_entry) const
+	{
+		if (const auto it = chosen.find(a_entry.filterFlag); it != chosen.end()) {
+			return it->second == a_entry.key;
+		}
+		return std::ranges::find(picked, a_entry.text) != picked.end() || std::ranges::find(picked, a_entry.rawText) != picked.end();
+	}
+
 	void Model::Record(HistoryItem a_item)
 	{
 		if (a_item.empty()) {
@@ -589,7 +612,7 @@ namespace RMA
 	void Model::ResetEntry(Entry& a_entry)
 	{
 		HistoryItem item;
-		if (a_entry.control != Control::Paint && a_entry.control != Control::Race && std::abs(a_entry.position - a_entry.initialPosition) > 1e-9) {
+		if (a_entry.control != Control::Paint && a_entry.control != Control::Race && a_entry.control != Control::Choice && std::abs(a_entry.position - a_entry.initialPosition) > 1e-9) {
 			item.push_back({ .key = a_entry.key, .kind = HistoryStep::Kind::Value, .from = a_entry.position, .to = a_entry.initialPosition });
 		}
 		if ((a_entry.hasColor || a_entry.control == Control::Paint) && a_entry.fillColor != a_entry.initialFill) {
@@ -609,7 +632,7 @@ namespace RMA
 		// sex is left alone: flipping it rebuilds the whole character
 		HistoryItem item;
 		for (auto& entry : entries) {
-			if (!entry.enabled || entry.control == Control::Sex || entry.control == Control::Race) {
+			if (!entry.enabled || entry.control == Control::Sex || entry.control == Control::Race || entry.control == Control::Choice) {
 				continue;
 			}
 			if (entry.control != Control::Paint && std::abs(entry.position - entry.initialPosition) > 1e-9) {

@@ -233,10 +233,24 @@ namespace RMA::Bridge
 					entry.raceID = static_cast<int>(GetNum(e, "raceID", -1));
 					entry.texture = GetStr(e, "texture");
 					entry.listType = static_cast<int>(GetNum(e, "listType", -1));
+					entry.description = GetStr(e, "raceDescription");
 					if (!entry.enabled || entry.rawText.empty() || entry.type < 1 || entry.type > 7) {
 						continue;
 					}
 					a_out.entries.push_back(std::move(entry));
+				}
+			}
+
+			// what the bottom bar shows as chosen for lists other mods add (Apprentice: ClassValue, TraitValue)
+			RE::GFxValue playerInfo;
+			if (movie->GetVariable(&playerInfo, Path(".bottomBar.playerInfo").c_str()) && playerInfo.IsObject()) {
+				for (const auto field : { "ClassValue", "TraitValue" }) {
+					RE::GFxValue text;
+					if (playerInfo.GetMember(field, &text) && text.IsObject()) {
+						if (auto value = GetStr(text, "text"); !value.empty()) {
+							a_out.picked.push_back(std::move(value));
+						}
+					}
 				}
 			}
 
@@ -781,6 +795,38 @@ namespace RMA::Bridge
 			}
 			WriteBack(ref, "texture", RE::GFxValue(a_texture.c_str()));
 		});
+	}
+
+	void PressEntry(const EntryRef& a_ref)
+	{
+		// what a click on the row does in RaceMenu's own list: onItemPress({index}) on the panels instance. A mod
+		// that adds rows (Apprentice) replaces that handler, so its pick is recorded exactly as from its own UI.
+		QueueUI([a_ref] {
+			auto movie = Movie();
+			if (!movie || a_ref.swfIndex < 0) {
+				return;
+			}
+			RE::GFxValue list;
+			RE::GFxValue entry;
+			if (!movie->GetVariable(&list, Path(".racePanel.itemList.entryList").c_str()) || !list.IsArray() ||
+				static_cast<std::uint32_t>(a_ref.swfIndex) >= list.GetArraySize() ||
+				!list.GetElement(static_cast<std::uint32_t>(a_ref.swfIndex), &entry) || !entry.IsObject() ||
+				GetStr(entry, "callbackName") != a_ref.callback) {
+				logger::warn("PressEntry: entry {} ({}) moved, not pressed", a_ref.swfIndex, a_ref.callback);
+				return;
+			}
+			RE::GFxValue panels;
+			if (!movie->GetVariable(&panels, kPanels) || !panels.IsObject()) {
+				return;
+			}
+			RE::GFxValue event;
+			movie->CreateObject(&event);
+			event.SetMember("index", RE::GFxValue(static_cast<double>(a_ref.swfIndex)));
+			event.SetMember("entry", entry);
+			const bool ok = panels.Invoke("onItemPress", nullptr, &event, 1);
+			logger::info("PressEntry: onItemPress({}) for {} {}", a_ref.swfIndex, a_ref.callback, ok ? "sent" : "FAILED");
+		});
+		RequestRefresh(250);
 	}
 
 	void ChangeRace(int a_raceID)

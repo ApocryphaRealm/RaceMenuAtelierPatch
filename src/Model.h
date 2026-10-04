@@ -28,6 +28,7 @@ namespace RMA
 	enum class Control
 	{
 		Race,
+		Choice,  // a race-type entry another mod put in a category of its own (Apprentice's classes and traits)
 		Slider,
 		Stepper,
 		Sex,
@@ -81,6 +82,7 @@ namespace RMA
 		int                      listType{ -1 };
 		std::string              rawText;
 		std::string              text;  // translated
+		std::string              description;  // raceDescription, when the entry carries one
 
 		// derived
 		std::string key;
@@ -108,6 +110,7 @@ namespace RMA
 		std::vector<Category>                    categories;
 		std::vector<Entry>                       entries;
 		std::array<std::vector<PaintTexture>, 5> makeup;
+		std::vector<std::string>                 picked;  // the bottom bar's choice values (Apprentice: class, trait)
 	};
 
 	struct PlayerInfo
@@ -180,6 +183,8 @@ namespace RMA
 		std::array<std::vector<PaintTexture>, 5> makeup;
 		std::unordered_map<std::string, int>     byKey;
 		PlayerInfo                               player;
+		std::vector<std::string>                 picked;  // names the menu shows as chosen (bottom bar)
+		std::unordered_map<std::int64_t, std::string> chosen;  // category flag -> key of this session's pick
 		bool                                     hasData{ false };
 		std::uint64_t                            dataEpoch{ 0 };   // bumps on every snapshot
 		std::uint64_t                            valueEpoch{ 0 };  // bumps on every local edit
@@ -221,6 +226,7 @@ namespace RMA
 		void SetColor(Entry& a_entry, std::uint32_t a_argb, bool a_send = true);
 		void SetTexture(Entry& a_entry, const std::string& a_texture);
 		void ChangeRace(const Entry& a_entry);
+		void PressChoice(const Entry& a_entry);
 
 		void Record(HistoryItem a_item);
 		void Undo();
@@ -230,6 +236,7 @@ namespace RMA
 
 		[[nodiscard]] int  TintIndexFor(const Entry& a_entry) const;
 		[[nodiscard]] bool IsCurrentRace(const Entry& a_entry) const;
+		[[nodiscard]] bool IsCurrentChoice(const Entry& a_entry) const;
 
 	private:
 		void Apply(const HistoryStep& a_step, bool a_forward);

@@ -1,4 +1,5 @@
 #include "Bridge.h"
+#include "DevBenchTool.h"
 #include "Settings.h"
 #include "UI/UI.h"
 
@@ -29,10 +30,14 @@ namespace
 				logger::critical("SKSE Menu Framework is not installed; RaceMenu Atelier stays inactive and RaceMenu keeps its own interface");
 			}
 			break;
+		case SKSE::MessagingInterface::kPostLoad:
+			RMA::DevBenchTool::Init(false);
+			break;
 		case SKSE::MessagingInterface::kDataLoaded:
 			if (RMA::UI::IsRegistered()) {
 				RMA::Bridge::Install();
 			}
+			RMA::DevBenchTool::Init(true);
 			break;
 		default:
 			break;
