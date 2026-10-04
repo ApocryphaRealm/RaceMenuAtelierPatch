@@ -783,7 +783,7 @@ namespace RMA::UI
 			im::SetCursorScreenPos({ boxX, ctrlY });
 			const bool clicked = im::InvisibleButton("##readout", { boxW, g.ctrl });
 			const bool hovered = im::IsItemHovered();
-			dl::AddRectFilled(list, { boxX, ctrlY }, { boxX + boxW, ctrlY + g.ctrl }, hovered && headPart ? Color::FrameHover : Color::Track, g.u * 0.25f, 0);
+			dl::AddRectFilled(list, { boxX, ctrlY }, { boxX + boxW, ctrlY + g.ctrl }, hovered && headPart ? Color::FrameHover : Color::Track, Round(g.u * 0.25f), 0);
 
 			const auto counter = std::format("{} / {}", cur, maxV);
 			const auto counterSize = W::SmallTextSize(counter.c_str());
@@ -854,7 +854,7 @@ namespace RMA::UI
 			const ImVec2 pos{ a_pos.x + g.padX, ctrlY };
 			const bool   clicked = im::InvisibleButton("##texture", { width, g.ctrl });
 			const bool   hovered = im::IsItemHovered();
-			dl::AddRectFilled(list, pos, pos + ImVec2{ width, g.ctrl }, hovered ? Color::FrameHover : Color::Frame, g.u * 0.25f, 0);
+			dl::AddRectFilled(list, pos, pos + ImVec2{ width, g.ctrl }, hovered ? Color::FrameHover : Color::Frame, Round(g.u * 0.25f), 0);
 			DrawIcon(list, pos + ImVec2{ g.u * 0.8f, g.ctrl * 0.5f }, Icon::Brush, Color::Gold);
 			const auto text = W::Ellipsize(stem, width - g.u * 3.5f);
 			const auto ts = im::CalcTextSize(text.c_str());
@@ -873,7 +873,7 @@ namespace RMA::UI
 			const ImVec2 max = a_pos + ImVec2{ a_width, g.height };
 			const bool   hovered = im::IsMouseHoveringRect(a_pos, max) && im::IsWindowHovered();
 			const bool   changed = a_entry.IsChanged();
-			const float  rounding = g.u * 0.3f;
+			const float rounding = Round(g.u * 0.3f);
 			// card: alternating tone, hairline border, a colour edge for the
 			// slider family; a gold outline marks what changed this session
 			dl::AddRectFilled(list, a_pos, max, hovered ? Color::RowHover : (a_item.stripe % 2 ? Color::RowAlt : Color::Row), rounding, 0);
@@ -936,7 +936,7 @@ namespace RMA::UI
 				const bool  clicked = im::InvisibleButton("##race", { cardW, a_cardH });
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentRace(e);
-				const float rounding = u * 0.3f;
+				const float rounding = Round(u * 0.3f);
 
 				dl::AddRectFilled(list, pos, max, hovered ? Color::RowHover : Color::Row, rounding, 0);
 				dl::AddRectFilled(list, pos, max, current ? Color::GoldWashStrong : WithAlpha(tint, hovered ? 0.22f : 0.12f), rounding, 0);
@@ -950,7 +950,7 @@ namespace RMA::UI
 				}
 				const auto name = W::Ellipsize(e.label, max.x - textX - u * 0.4f);
 				const auto ns = im::CalcTextSize(name.c_str());
-				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : IM_COL32(214, 218, 226, 255), name.c_str());
+				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
 				if (hovered) {
 					const auto tip = current ? std::string("Current race") : "Change the race to " + e.label;
 					W::Tooltip(tip.c_str());
@@ -989,7 +989,7 @@ namespace RMA::UI
 				const bool  clicked = im::InvisibleButton("##choice", { cardW, a_cardH });
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentChoice(e);
-				const float rounding = u * 0.3f;
+				const float rounding = Round(u * 0.3f);
 
 				dl::AddRectFilled(list, pos, max, hovered ? Color::RowHover : Color::Row, rounding, 0);
 				dl::AddRectFilled(list, pos, max, current ? Color::GoldWashStrong : WithAlpha(tint, hovered ? 0.22f : 0.12f), rounding, 0);
@@ -1003,7 +1003,7 @@ namespace RMA::UI
 				}
 				const auto name = W::Ellipsize(e.label, max.x - textX - u * 0.4f);
 				const auto ns = im::CalcTextSize(name.c_str());
-				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : IM_COL32(214, 218, 226, 255), name.c_str());
+				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
 				if (hovered) {
 					const auto tip = e.description.empty() ? (current ? std::string("Chosen") : "Choose " + e.label) : e.label + "\n\n" + e.description;
 					W::Tooltip(tip.c_str());
@@ -1646,10 +1646,10 @@ namespace RMA::UI
 				const bool clicked = im::InvisibleButton(a_id, { width, h });
 				const bool hovered = im::IsItemHovered();
 				if (a_selected || hovered) {
-					dl::AddRectFilled(list, pos, pos + ImVec2{ width, h }, a_selected ? WithAlpha(a_hue, 0.2f) : Color::RowHover, u * 0.3f, 0);
+					dl::AddRectFilled(list, pos, pos + ImVec2{ width, h }, a_selected ? WithAlpha(a_hue, 0.2f) : Color::RowHover, Round(u * 0.3f), 0);
 				}
 				if (a_selected) {
-					dl::AddRectFilled(list, pos, pos + ImVec2{ std::max(3.0f, std::floor(u * 0.16f)), h }, a_hue, u * 0.3f, ImGuiMCP::ImDrawFlags_RoundCornersLeft);
+					dl::AddRectFilled(list, pos, pos + ImVec2{ std::max(3.0f, std::floor(u * 0.16f)), h }, a_hue, Round(u * 0.3f), ImGuiMCP::ImDrawFlags_RoundCornersLeft);
 				}
 				DrawIcon(list, pos + ImVec2{ u * 0.95f, h * 0.5f }, a_icon, a_hue);
 				const float dotSpace = a_changed > 0 ? u * 0.8f : 0.0f;
@@ -1735,8 +1735,8 @@ namespace RMA::UI
 							const auto   ts = im::CalcTextSize(item.group.c_str());
 							const float  tabH = ts.y + g.u * 0.45f;
 							const ImVec2 tab{ pos.x, pos.y + headerH - tabH - g.u * 0.05f };
-							dl::AddRectFilled(list, tab, tab + ImVec2{ ts.x + g.u * 1.2f, tabH }, WithAlpha(item.hue, 0.18f), g.u * 0.25f, 0);
-							dl::AddRectFilled(list, tab, tab + ImVec2{ std::max(3.0f, std::floor(g.u * 0.16f)), tabH }, item.hue, g.u * 0.25f, ImGuiMCP::ImDrawFlags_RoundCornersLeft);
+							dl::AddRectFilled(list, tab, tab + ImVec2{ ts.x + g.u * 1.2f, tabH }, WithAlpha(item.hue, 0.18f), Round(g.u * 0.25f), 0);
+							dl::AddRectFilled(list, tab, tab + ImVec2{ std::max(3.0f, std::floor(g.u * 0.16f)), tabH }, item.hue, Round(g.u * 0.25f), ImGuiMCP::ImDrawFlags_RoundCornersLeft);
 							dl::AddText(list, tab + ImVec2{ g.u * 0.65f, (tabH - ts.y) * 0.5f }, item.hue, item.group.c_str());
 							const float ly = std::floor(tab.y + tabH * 0.5f);
 							dl::AddLine(list, { tab.x + ts.x + g.u * 1.6f, ly }, { pos.x + width, ly }, WithAlpha(item.hue, 0.35f), 1.0f);
@@ -1925,7 +1925,7 @@ namespace RMA::UI
 				const auto  stem = Text::FileStem(file);
 				const bool  hovered = im::IsMouseHoveringRect(pos, pos + ImVec2{ width, b });
 				if (hovered) {
-					dl::AddRectFilled(list, pos, pos + ImVec2{ width, b }, Color::RowHover, u * 0.25f, 0);
+					dl::AddRectFilled(list, pos, pos + ImVec2{ width, b }, Color::RowHover, Round(u * 0.25f), 0);
 				}
 				const float textW = width - b * 2.0f - u * 1.2f;
 				float       x = pos.x + u * 0.3f;

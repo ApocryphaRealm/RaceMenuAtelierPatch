@@ -1,6 +1,7 @@
 #include "Bridge.h"
 #include "DevBenchTool.h"
 #include "Settings.h"
+#include "UI/Theme.h"
 #include "UI/UI.h"
 
 namespace
@@ -26,6 +27,7 @@ namespace
 		switch (a_message->type) {
 		case SKSE::MessagingInterface::kPostPostLoad:
 			RMA::Settings::Get().Load();
+			RMA::UI::LoadTheme();
 			if (!RMA::UI::Register()) {
 				logger::critical("SKSE Menu Framework is not installed; RaceMenu Atelier stays inactive and RaceMenu keeps its own interface");
 			}

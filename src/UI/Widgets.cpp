@@ -33,9 +33,9 @@ namespace RMA::UI::Widgets
 		const ImU32 bg = a_active ? Color::GoldWashStrong : held ? Color::FrameActive :
 		                                                    hovered ? Color::FrameHover :
 		                                                              Color::Frame;
-		dl::AddRectFilled(list, pos, pos + ImVec2{ s, s }, bg, U() * 0.25f, 0);
+		dl::AddRectFilled(list, pos, pos + ImVec2{ s, s }, bg, Round(U() * 0.25f), 0);
 		if (a_active) {
-			dl::AddRect(list, pos, pos + ImVec2{ s, s }, Color::BorderStrong, U() * 0.25f, 0, 1.0f);
+			dl::AddRect(list, pos, pos + ImVec2{ s, s }, Color::BorderStrong, Round(U() * 0.25f), 0, 1.0f);
 		}
 		DrawIcon(list, pos + ImVec2{ s * 0.5f, s * 0.5f }, a_icon, a_active ? Color::GoldBright : hovered ? Color::Text : Color::TextDim);
 		if (hovered && a_tooltip) {
@@ -69,7 +69,7 @@ namespace RMA::UI::Widgets
 		if (a_primary) {
 			bg = held ? Color::GoldDim : hovered ? Color::GoldBright :
 			                                       Color::Gold;
-			fg = IM_COL32(28, 20, 10, 255);
+			fg = Color::OnAccent;
 		} else {
 			bg = a_active ? Color::GoldWashStrong : held ? Color::FrameActive :
 			                                        hovered ? Color::FrameHover :
@@ -77,9 +77,9 @@ namespace RMA::UI::Widgets
 			fg = a_active ? Color::GoldBright : hovered ? Color::Text :
 			                                              Color::TextDim;
 		}
-		dl::AddRectFilled(list, pos, pos + size, bg, u * 0.25f, 0);
+		dl::AddRectFilled(list, pos, pos + size, bg, Round(u * 0.25f), 0);
 		if (a_active && !a_primary) {
-			dl::AddRect(list, pos, pos + size, Color::BorderStrong, u * 0.25f, 0, 1.0f);
+			dl::AddRect(list, pos, pos + size, Color::BorderStrong, Round(u * 0.25f), 0, 1.0f);
 		}
 
 		float x = pos.x + std::max(u * 0.4f, (size.x - content) * 0.5f);
@@ -116,7 +116,7 @@ namespace RMA::UI::Widgets
 		}
 		const bool hovered = im::IsItemHovered();
 		auto*      list = im::GetWindowDrawList();
-		dl::AddRectFilled(list, pos, pos + ImVec2{ width, height }, hovered ? Color::PanelHover : Color::Panel, u * 0.3f, 0);
+		dl::AddRectFilled(list, pos, pos + ImVec2{ width, height }, hovered ? Color::PanelHover : Color::Panel, Round(u * 0.3f), 0);
 		dl::AddRectFilled(list, pos, pos + ImVec2{ 2.0f, height }, a_open ? Color::Gold : Color::GoldDim, 0.0f, 0);
 		if (a_icon) {
 			DrawIcon(list, pos + ImVec2{ u * 1.0f, height * 0.5f }, a_icon, Color::Gold);
@@ -166,7 +166,7 @@ namespace RMA::UI::Widgets
 		im::Dummy(a_size);
 		const auto* image = Preview::Get(a_path);
 		if (!image) {
-			dl::AddRectFilled(list, pos, pos + a_size, Color::Track, U() * 0.2f, 0);
+			dl::AddRectFilled(list, pos, pos + a_size, Color::Track, Round(U() * 0.2f), 0);
 			const char* text = a_path.empty() ? "no texture" : "no preview";
 			const auto  size = SmallTextSize(text);
 			SmallText(list, pos + ImVec2{ (a_size.x - size.x) * 0.5f, (a_size.y - size.y) * 0.5f }, Color::TextFaint, text);
@@ -238,7 +238,7 @@ namespace RMA::UI::Widgets
 
 		const bool outside = a_value < a_min - 1e-9 || a_value > a_max + 1e-9;
 		dl::AddCircleFilled(list, { vx, cy }, radius + 1.5f, Color::Shadow, 20);
-		dl::AddCircleFilled(list, { vx, cy }, radius, outside ? Color::Danger : active ? Color::GoldBright : hovered ? IM_COL32(250, 246, 236, 255) : Color::Text, 20);
+		dl::AddCircleFilled(list, { vx, cy }, radius, outside ? Color::Danger : active ? Color::GoldBright : hovered ? Color::KnobHover : Color::Text, 20);
 		dl::AddCircleFilled(list, { vx, cy }, radius * 0.4f, a_fill, 12);
 		return state;
 	}
