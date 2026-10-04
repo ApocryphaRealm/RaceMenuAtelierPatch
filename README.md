@@ -1,5 +1,8 @@
 # RaceMenu Atelier - Apprentice Patch
 
+> **Note:** emberchain, the author of RaceMenu Atelier, has permission to incorporate this patch into RaceMenu
+> Atelier. When they do, this patch will be taken down.
+
 A patched build of [RaceMenu Atelier](https://www.nexusmods.com/skyrimspecialedition/mods/193865) (by emberchain,
 GPL-3.0, [emberchain/RaceMenuAtelier](https://github.com/emberchain/RaceMenuAtelier) at `8db73c5`, its 1.0.0) that makes
 it work with [Apprentice - A Class Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/169288) (by Simon Magus

@@ -1,6 +1,9 @@
 RaceMenu Atelier - Apprentice Patch
 Version 1.0.0
 
+NOTE FROM THE AUTHOR: emberchain, the author of RaceMenu Atelier, has my permission to incorporate this patch into
+RaceMenu Atelier. When they do, this patch will be taken down.
+
 Makes RaceMenu Atelier work with Apprentice - A Class Overhaul. Classes and traits get their own tiles under the CLASS
 and TRAIT categories instead of sitting in the race list, and choosing one records it with Apprentice exactly as
 RaceMenu's own menu does. Without the patch, choosing a class in Atelier changed your race instead (the class's number
