@@ -3,7 +3,7 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
-## 1.0.1 - 2026-10-13 - untested
+## 1.0.1 - 2026-10-13 - working
 
 Asked for by the owner, 2026-10-13, playing with a controller: "I want the trait and class categories to be directly
 after the race category"; "when you press X with controller, it will automatically press the done button, just like
