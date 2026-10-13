@@ -7,23 +7,36 @@ version gate only once a build is seen working in game (rule 48).
 
 Asked for by the owner, 2026-10-13, playing with a controller: "I want the trait and class categories to be directly
 after the race category"; "when you press X with controller, it will automatically press the done button, just like
-the original race menu"; and the D-pad "only affects the top right window for scene and presets, but not the left
-window".
+the original race menu"; and, after trying the first build (L1/R1 window switching with a gold outline), "I want the
+left stick to change focus from the left to the right pane, and I want the right stick to be character rotation, just
+like the original race menu", with every item reachable by the D-pad and no white frame to enter and leave with A and B.
 
 ### Changed
 - Category order: the Class and Trait categories (any category holding another mod's choices) now come directly after
   Race in the category rail, and the controller triggers step through them in that order. The rest keep RaceMenu's
   order, and each category keeps its colour.
+- Controller navigation, as in RaceMenu: the D-pad moves freely over every item of a window - categories, sliders,
+  race and class cards, presets - with no area to enter with A and leave with B, and no white frame round an area; only
+  the highlighted item shows. A activates, B backs out of a popup.
+- D-pad left/right on a slider steps it (by its interval, repeating while held), and on an option row (hair, eyes and
+  other parts) moves to the previous or next option; up and down move between items. A on a slider no longer jumps its
+  value to the mouse pointer. The step arrows and the typed value stay for the mouse and take no D-pad stop.
 
 ### Added
 - Controller X (PlayStation Square) presses Done, as R does on the keyboard and as in RaceMenu: with "Ask before
   finishing the character" on (the default) it opens the same confirmation, otherwise it finishes at once. Switchable
   in Options ("Controller X finishes the character", `bGamepadDone` in RaceMenuAtelier.ini, on by default).
-- Controller window switching: L1 moves the focus to the editor on the left (categories and sliders), R1 to the scene
-  and presets panel on the right (or its tab when the panel is hidden); the D-pad then moves inside the focused window.
-  Not while a slider is being adjusted, where ImGui uses L1/R1 for slower and faster steps.
-- While the controller is in use, the focused window has a gold outline; moving or clicking the mouse removes it, so
-  mouse and keyboard look as before.
+- Left stick left/right switches between the two windows - left the editor (categories and sliders), right the scene
+  and presets panel (or its tab when the panel is hidden) - once per push, not repeating while held. Up and down on the
+  left stick do nothing. In RaceMenu's own interface (F4) the left stick is the game's as before.
+
+### Fixed
+- Controller: the right stick turns the character while the Atelier is open, as in RaceMenu (full tilt at the Q/E
+  speed; not while a slider is held with A, where the menu framework gives the right stick to that slider). The menu
+  framework keeps every stick event from the game while the editor holds the input, so RaceMenu and rotation mods such
+  as Racemenu Rotation with Gamepad Support never saw it (in 1.0.0 as well); the editor now reads the right stick
+  itself and never claims it. Reported by the owner, 2026-10-13: the character's rotation was not responding to the
+  sticks.
 
 ### Build
 - Built through the shared build environment with `/d1trimfile`: no build-machine path in the DLL, no user folder in

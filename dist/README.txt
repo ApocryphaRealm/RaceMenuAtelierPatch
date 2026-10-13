@@ -30,8 +30,13 @@ What it changes
 
 Controller
 ----------
-- L1 / R1: move between the editor on the left (categories and sliders) and the scene and presets panel on the right;
-  the D-pad moves inside the window that has the gold outline. L2 / R2 step through the categories.
+As in RaceMenu:
+- Left stick left / right: move between the editor on the left (categories and sliders) and the scene and presets
+  panel on the right, once per push.
+- Right stick: turns the character.
+- D-pad: moves over every item of the window, with no area to enter or leave; left / right on a slider steps it, on
+  an option row moves to the previous or next option. A activates, B backs out of a popup.
+- L2 / R2 step through the categories.
 - X (PlayStation Square): Done, as R on the keyboard (switchable in Options).
 - The Class and Trait categories come directly after Race.
 

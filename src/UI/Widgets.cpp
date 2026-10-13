@@ -201,7 +201,8 @@ namespace RMA::UI::Widgets
             return x0 + static_cast<float>(t) * (x1 - x0);
 		};
 
-		if (active && range > 0.0) {
+		// follows the mouse only: A on the track (controller) does not move the value, the D-pad steps it
+		if (active && range > 0.0 && im::IsMouseDown(0)) {
 			const float mouse = im::GetMousePos().x;
 			double      t = std::clamp(static_cast<double>((mouse - x0) / std::max(1.0f, x1 - x0)), 0.0, 1.0);
 			double      v = a_min + t * range;

@@ -19,6 +19,62 @@ namespace RMA::UI
 		constexpr auto kSideWindow = "Scene##RMA.Side";
 		constexpr auto kSideTabWindow = "SceneTab##RMA.SideTab";
 
+		// Controller navigation needs two ImGui 1.92 values that the SKSE Menu Framework 3 header only has older
+		// copies of (its ImGuiItemFlags_NoNav is 1 << 3, ImGui 1.92's 1 << 1; it has no ImGuiChildFlags_NavFlattened).
+		// The menu framework hosting the editor runs ImGui 1.92; on an older ImGui they are left out.
+		constexpr ImGuiMCP::ImGuiChildFlags kChildNavFlattened = 1 << 8;  // ImGuiChildFlags_NavFlattened (1.90.9+)
+		constexpr ImGuiMCP::ImGuiItemFlags  kItemNoNav = 1 << 1;          // ImGuiItemFlags_NoNav (1.91+)
+
+		bool ModernNav()
+		{
+			static const bool modern = [] {
+				const char* version = ImGuiMCP::GetVersion();
+				int         major = 0, minor = 0;
+				return version && std::sscanf(version, "%d.%d", &major, &minor) == 2 && (major > 1 || minor >= 91);
+			}();
+			return modern;
+		}
+
+		// a child window the D-pad moves into and out of freely, with no A to enter it and B to leave it
+		ImGuiMCP::ImGuiChildFlags NavChild()
+		{
+			return ModernNav() ? kChildNavFlattened : ImGuiMCP::ImGuiChildFlags_None;
+		}
+
+		// the next items take no D-pad stop (the slider's step arrows and typed value: the D-pad steps the track itself)
+		void PushNoNav()
+		{
+			if (ModernNav()) {
+				ImGuiMCP::PushItemFlag(kItemNoNav, true);
+			}
+		}
+
+		void PopNoNav()
+		{
+			if (ModernNav()) {
+				ImGuiMCP::PopItemFlag();
+			}
+		}
+
+		// Controller, as in RaceMenu: D-pad left/right on the focused slider or option steps it instead of moving the
+		// focus (the item takes the two keys from ImGui's navigation while it has the focus). Call right after the item.
+		int PadStep()
+		{
+			if (!ModernNav() || !ImGuiMCP::IsItemFocused() || ImGuiMCP::IsItemActive()) {
+				return 0;
+			}
+			const auto id = ImGuiMCP::GetItemID();
+			ImGuiMCP::SetKeyOwner(ImGuiMCP::ImGuiKey_GamepadDpadLeft, id, 0);
+			ImGuiMCP::SetKeyOwner(ImGuiMCP::ImGuiKey_GamepadDpadRight, id, 0);
+			if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadDpadLeft, true)) {
+				return -1;
+			}
+			if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadDpadRight, true)) {
+				return 1;
+			}
+			return 0;
+		}
+
 		constexpr std::array<std::pair<const char*, const char*>, 8> kPoses{ {
 			{ "IdleWave", "Wave" },
 			{ "IdleApplaud2", "Applaud" },
@@ -137,11 +193,23 @@ namespace RMA::UI
 			// scene
 			bool rotating{ false };
 
-			// controller: the last input came from the pad, so the focused window is outlined
-			bool padNav{ false };
+			// controller: the left stick is pushed left or right (one window switch per push)
+			bool stickPushed{ false };
 		};
 
 		State s;
+
+		// Controller: the right stick's x, as last reported by the game (written on the input thread by OnInput, read
+		// by the frame). While the editor holds the input the menu framework keeps every stick event from the game, so
+		// neither RaceMenu nor a rotation mod sees the right stick - the editor turns the character with it itself, as
+		// RaceMenu does.
+		std::atomic<float> g_rightStickX{ 0.0f };
+
+		// Controller: the left stick's x while the editor holds the input. The editor takes the left stick for itself
+		// then (left/right switches between its two windows), so ImGui does not also scroll with it; in RaceMenu's own
+		// interface and while another menu is on top it goes to the game as before.
+		std::atomic<float> g_leftStickX{ 0.0f };
+		std::atomic<bool>  g_editorHasInput{ false };
 
 		// ------------------------------------------------------------------
 		// helpers
@@ -396,6 +464,9 @@ namespace RMA::UI
 		void EndSession()
 		{
 			s.session = false;
+			g_rightStickX.store(0.0f, std::memory_order_relaxed);
+			g_leftStickX.store(0.0f, std::memory_order_relaxed);
+			g_editorHasInput.store(false, std::memory_order_relaxed);
 			ReleaseLock();
 			Preview::Clear();
 		}
@@ -705,7 +776,10 @@ namespace RMA::UI
 				}
 			} else {
 				im::SetCursorScreenPos({ valueX, lineY });
-				if (im::InvisibleButton("##valuebtn", { valueW, g.line })) {
+				PushNoNav();
+				const bool typeValue = im::InvisibleButton("##valuebtn", { valueW, g.line });
+				PopNoNav();
+				if (typeValue) {
 					s.editKey = a_entry.key;
 					s.editValue = a_entry.position;
 					s.editGrace = 4;
@@ -745,7 +819,10 @@ namespace RMA::UI
 			const float ctrlY = lineY + g.line + g.gap;
 			im::SetCursorScreenPos({ a_pos.x + g.padX, ctrlY });
 			const double step = a_entry.interval > 0.0 ? a_entry.interval : 0.01;
-			if (W::IconButton("##down", Icon::ChevronLeft, nullptr, false, g.ctrl)) {
+			PushNoNav();
+			const bool stepDown = W::IconButton("##down", Icon::ChevronLeft, nullptr, false, g.ctrl);
+			PopNoNav();
+			if (stepDown) {
 				const double v = std::clamp(Snap(a_entry, a_entry.position - step), a_entry.min, a_entry.max);
 				CommitValue(a_model, a_entry, v);
 			}
@@ -754,6 +831,12 @@ namespace RMA::UI
 			im::SetCursorScreenPos({ trackX, ctrlY });
 			double     value = a_entry.position;
 			const auto st = W::ValueTrack("##track", value, a_entry.min, a_entry.max, a_entry.interval, a_entry.initialPosition, { trackW, g.ctrl }, a_item.hue);
+			if (const int pad = PadStep(); pad != 0) {
+				const double v = std::clamp(Snap(a_entry, a_entry.position + pad * step), a_entry.min, a_entry.max);
+				if (std::abs(v - a_entry.position) > 1e-9) {
+					CommitValue(a_model, a_entry, v);
+				}
+			}
 			if (st.activated) {
 				s.dragKey = a_entry.key;
 				s.dragFrom = a_entry.position;
@@ -774,7 +857,10 @@ namespace RMA::UI
 				s.dragKey.clear();
 			}
 			im::SetCursorScreenPos({ right - g.ctrl, ctrlY });
-			if (W::IconButton("##up", Icon::ChevronRight, nullptr, false, g.ctrl)) {
+			PushNoNav();
+			const bool stepUp = W::IconButton("##up", Icon::ChevronRight, nullptr, false, g.ctrl);
+			PopNoNav();
+			if (stepUp) {
 				const double v = std::clamp(Snap(a_entry, a_entry.position + step), a_entry.min, a_entry.max);
 				CommitValue(a_model, a_entry, v);
 			}
@@ -806,17 +892,25 @@ namespace RMA::UI
 			const int   cur = static_cast<int>(std::lround(a_entry.position));
 
 			im::SetCursorScreenPos({ a_pos.x + g.padX, ctrlY });
+			PushNoNav();
 			im::BeginDisabled(cur <= minV);
 			if (W::IconButton("##prev", Icon::ChevronLeft, nullptr, false, g.ctrl)) {
 				CommitValue(a_model, a_entry, static_cast<double>(std::max(minV, cur - 1)));
 			}
 			im::EndDisabled();
+			PopNoNav();
 
 			const float boxX = a_pos.x + g.padX + g.ctrl + g.u * 0.3f;
 			const float boxW = right - g.ctrl - g.u * 0.3f - boxX;
 			im::SetCursorScreenPos({ boxX, ctrlY });
 			const bool clicked = im::InvisibleButton("##readout", { boxW, g.ctrl });
 			const bool hovered = im::IsItemHovered();
+			if (const int pad = PadStep(); pad != 0) {
+				const int to = std::clamp(cur + pad, minV, maxV);
+				if (to != cur) {
+					CommitValue(a_model, a_entry, static_cast<double>(to));
+				}
+			}
 			dl::AddRectFilled(list, { boxX, ctrlY }, { boxX + boxW, ctrlY + g.ctrl }, hovered && headPart ? Color::FrameHover : Color::Track, Round(g.u * 0.25f), 0);
 
 			const auto counter = std::format("{} / {}", cur, maxV);
@@ -843,11 +937,13 @@ namespace RMA::UI
 			}
 
 			im::SetCursorScreenPos({ right - g.ctrl, ctrlY });
+			PushNoNav();
 			im::BeginDisabled(cur >= maxV);
 			if (W::IconButton("##next", Icon::ChevronRight, nullptr, false, g.ctrl)) {
 				CommitValue(a_model, a_entry, static_cast<double>(std::min(maxV, cur + 1)));
 			}
 			im::EndDisabled();
+			PopNoNav();
 		}
 
 		void RowSex(Model& a_model, Entry& a_entry, const Item& a_item, const RowGeometry& g, ImVec2 a_pos, float a_width, bool a_changed)
@@ -1668,7 +1764,7 @@ namespace RMA::UI
 
 		void RenderCategories(Model& a_model, ImVec2 a_size)
 		{
-			im::BeginChild("##categories", a_size, ImGuiMCP::ImGuiChildFlags_None);
+			im::BeginChild("##categories", a_size, NavChild());
 			ApplyFont();
 			const float u = U();
 			const float h = std::floor(u * 1.85f);
@@ -1721,7 +1817,7 @@ namespace RMA::UI
 
 		void RenderList(Model& a_model, ImVec2 a_size)
 		{
-			im::BeginChild("##list", a_size, ImGuiMCP::ImGuiChildFlags_None);
+			im::BeginChild("##list", a_size, NavChild());
 			ApplyFont();
 			if (s.scrollTop) {
 				im::SetScrollY(0.0f);
@@ -1824,19 +1920,6 @@ namespace RMA::UI
 			im::EndDisabled();
 		}
 
-		// controller: outline the window the pad's D-pad is moving in (called inside that window, before End)
-		void OutlineIfPadFocused()
-		{
-			if (!s.padNav || !im::IsWindowFocused(ImGuiMCP::ImGuiFocusedFlags_RootAndChildWindows)) {
-				return;
-			}
-			const auto  pos = im::GetWindowPos();
-			const auto  size = im::GetWindowSize();
-			const float t = std::max(2.0f, std::floor(U() * 0.12f));
-			const ImVec2 inset{ t * 0.5f, t * 0.5f };
-			dl::AddRect(im::GetForegroundDrawList(), pos + inset, pos + size - inset, Color::Gold, im::GetStyle()->WindowRounding, 0, t);
-		}
-
 		void RenderEditor(Model& a_model)
 		{
 			const auto* io = im::GetIO();
@@ -1877,7 +1960,6 @@ namespace RMA::UI
 			ConfirmModal("##confirmreset", s.openResetAll, "Reset every change?",
 				std::format("{} changed sliders, colours and textures return to how they were when RaceMenu opened. Race and sex stay as they are. This can be undone.", s.changedTotal),
 				"Reset", [&a_model] { a_model.ResetAll(); });
-			OutlineIfPadFocused();
 			im::End();
 		}
 
@@ -1958,7 +2040,7 @@ namespace RMA::UI
 			if (!s.presetInfoOpen.empty()) {
 				listH += u * 9.0f;
 			}
-			im::BeginChild("##presets", { 0.0f, listH }, ImGuiMCP::ImGuiChildFlags_None);
+			im::BeginChild("##presets", { 0.0f, listH }, NavChild());
 			ApplyFont();
 			if (a_model.presetFiles.empty()) {
 				im::TextColored(ToVec4(Color::TextFaint), "No presets in SKSE\\Plugins\\CharGen\\Presets");
@@ -2118,7 +2200,6 @@ namespace RMA::UI
 						Settings::Get().sidePanel = true;
 						Settings::Get().Save();
 					}
-					OutlineIfPadFocused();
 				}
 				im::End();
 				return;
@@ -2156,7 +2237,6 @@ namespace RMA::UI
 			if (W::Collapsible("##tools", Icon::Wrench, "RaceMenu tools", s.toolsOpen)) {
 				ToolsSection();
 			}
-			OutlineIfPadFocused();
 			im::End();
 		}
 
@@ -2166,16 +2246,16 @@ namespace RMA::UI
 		void HandleHotkeys(Model& a_model)
 		{
 			const auto* io = im::GetIO();
-			// controller: a pad button or the left stick makes the pad the input in use (the focused window is then
-			// outlined); moving or clicking the mouse hands it back, so mouse and keyboard look exactly as before
-			for (int k = ImGuiMCP::ImGuiKey_GamepadStart; k <= ImGuiMCP::ImGuiKey_GamepadLStickDown; ++k) {
-				if (im::IsKeyPressed(static_cast<ImGuiMCP::ImGuiKey>(k), false)) {
-					s.padNav = true;
-					break;
-				}
-			}
-			if (io->MouseDelta.x != 0.0f || io->MouseDelta.y != 0.0f || im::IsMouseClicked(0) || im::IsMouseClicked(1)) {
-				s.padNav = false;
+			// controller: the left stick pushed left focuses the editor on the left (categories and sliders), pushed
+			// right the scene and presets panel on the right - once per push, not repeating while held. Up and down do
+			// nothing: the D-pad moves between the items.
+			const float lx = g_leftStickX.load(std::memory_order_relaxed);
+			bool        stickSwitch = false;
+			if (!s.stickPushed && std::fabs(lx) > 0.6f) {
+				s.stickPushed = true;
+				stickSwitch = true;
+			} else if (s.stickPushed && std::fabs(lx) < 0.3f) {
+				s.stickPushed = false;
 			}
 			if (io->WantTextInput) {
 				return;
@@ -2198,15 +2278,8 @@ namespace RMA::UI
 			if (popup) {
 				return;
 			}
-			// controller: the bumpers move the focus between the two windows - L1 the editor on the left (categories and
-			// sliders), R1 the scene and presets panel on the right - and the D-pad then moves inside the focused one.
-			// Not while an item is being adjusted: ImGui holds L1/R1 there for slower and faster slider steps.
-			if (!im::IsAnyItemActive()) {
-				if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadL1, false)) {
-					im::SetWindowFocus(kEditorWindow);
-				} else if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadR1, false)) {
-					im::SetWindowFocus(Settings::Get().sidePanel ? kSideWindow : kSideTabWindow);
-				}
+			if (stickSwitch && !im::IsAnyItemActive()) {
+				im::SetWindowFocus(lx < 0.0f ? kEditorWindow : (Settings::Get().sidePanel ? kSideWindow : kSideTabWindow));
 			}
 			// R on the keyboard, or X on the controller (PlayStation Square) as in RaceMenu, presses Done
 			const bool padDone = Settings::Get().gamepadDone && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceLeft, false);
@@ -2227,6 +2300,17 @@ namespace RMA::UI
 			}
 			if (im::IsKeyDown(ImGuiMCP::ImGuiKey_E)) {
 				Bridge::Rotate(110.0f * dt);
+			}
+			// controller: the right stick turns the character (full tilt at the Q/E speed), except while an item is
+			// held with A - the framework hands the right stick to that slider's value then
+			if (!im::IsAnyItemActive()) {
+				constexpr float deadzone = 0.15f;
+				const float     x = g_rightStickX.load(std::memory_order_relaxed);
+				if (std::fabs(x) > deadzone) {
+					const float sign = x > 0.0f ? 1.0f : -1.0f;
+					const float tilt = (std::fabs(x) - deadzone) / (1.0f - deadzone);
+					Bridge::Rotate(sign * std::min(tilt, 1.0f) * 110.0f * dt);
+				}
 			}
 			// controller: triggers step through the categories
 			if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadL2, false) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadR2, false)) {
@@ -2361,6 +2445,7 @@ namespace RMA::UI
 			}
 
 			const bool want = model.mode == Mode::Editor && model.yieldCount == 0;
+			g_editorHasInput.store(want && s.window && s.window->IsOpen.load(), std::memory_order_relaxed);
 			if (s.window) {
 				const bool open = s.window->IsOpen.load();
 				if (open && !want) {
@@ -2383,6 +2468,21 @@ namespace RMA::UI
 
 		bool __stdcall OnInput(RE::InputEvent* a_event)
 		{
+			// the right stick is only read, never claimed (the game keeps it when the framework passes it on)
+			if (a_event && a_event->GetEventType() == RE::INPUT_EVENT_TYPE::kThumbstick) {
+				const auto* stick = static_cast<const RE::ThumbstickEvent*>(a_event);
+				if (stick->IsRight()) {
+					g_rightStickX.store(stick->xValue, std::memory_order_relaxed);
+					return false;
+				}
+				// the left stick is the editor's window switch while it holds the input, and the game's otherwise
+				if (!g_editorHasInput.load(std::memory_order_relaxed)) {
+					g_leftStickX.store(0.0f, std::memory_order_relaxed);
+					return false;
+				}
+				g_leftStickX.store(stick->xValue, std::memory_order_relaxed);
+				return true;
+			}
 			const auto button = a_event ? a_event->AsButtonEvent() : nullptr;
 			if (!button || button->GetDevice() != RE::INPUT_DEVICE::kKeyboard || !button->IsDown() ||
 				button->GetIDCode() != Settings::Get().toggleKey || !Bridge::IsMenuOpen()) {
