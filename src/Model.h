@@ -120,6 +120,14 @@ namespace RMA
 		int         sex{ -1 };  // 0 male, 1 female
 	};
 
+	// What RaceMenu reports for the value a part slider is on
+	struct PartInfo
+	{
+		std::string name;    // the head part's partName, empty when the slider is not a part list
+		std::string plugin;  // the plugin that defines the part
+		double      value{ 0.0 };  // the slider value this was read for
+	};
+
 	struct HeadPart
 	{
 		int         index{ 0 };
@@ -201,7 +209,7 @@ namespace RMA
 		std::vector<std::string>                           presetFiles;
 		bool                                               presetsLoaded{ false };
 		std::unordered_map<std::string, PresetInfo>        presetInfo;
-		std::unordered_map<double, std::string>            partNames;  // sliderID -> head part name
+		std::unordered_map<double, PartInfo>               partNames;  // sliderID -> part on the current value
 		double                                             headPartSlider{ -1.0 };
 		std::vector<HeadPart>                              headParts;
 		bool                                               headPartsLoaded{ false };

@@ -8,7 +8,7 @@ param([switch]$NoArchive)
 $ErrorActionPreference = 'Stop'
 
 $root    = Split-Path -Parent $PSScriptRoot
-$version = '1.0.0'
+$version = '1.0.1'
 $stage   = Join-Path $root 'dist\RaceMenu Atelier'
 $archive = Join-Path $root "dist\RaceMenu Atelier $version.7z"
 $dll     = Join-Path $root 'build\windows\x64\releasedbg\RaceMenuAtelier.dll'

@@ -562,6 +562,22 @@ namespace RMA::Bridge
 
 		std::set<std::string> g_yielding;
 
+		// A menu that was open before RaceMenu (showracemenu typed in the
+		// console) sends no open event, so it is added here or the editor
+		// would keep the keyboard and the console could not be closed.
+		void SeedAlreadyOpenMenus()
+		{
+			const auto ui = RE::UI::GetSingleton();
+			if (!ui) {
+				return;
+			}
+			for (const std::string_view menu : { RE::Console::MENU_NAME, RE::MessageBoxMenu::MENU_NAME }) {
+				if (ui->IsMenuOpen(menu) && g_yielding.insert(std::string(menu)).second) {
+					logger::info("{} was already open under RaceMenu, yielding input", menu);
+				}
+			}
+		}
+
 		class MenuWatcher final : public RE::BSTEventSink<RE::MenuOpenCloseEvent>
 		{
 		public:
@@ -592,6 +608,7 @@ namespace RMA::Bridge
 				const auto session = g_session.fetch_add(1, std::memory_order_acq_rel) + 1;
 				g_watch = {};
 				g_yielding.clear();
+				SeedAlreadyOpenMenus();
 				{
 					std::scoped_lock lock(g_refreshLock);
 					g_refreshAt.clear();
@@ -599,6 +616,7 @@ namespace RMA::Bridge
 				WithModel([](Model& m) {
 					m.ResetSession();
 					m.mode = Mode::Editor;
+					m.yieldCount = static_cast<int>(g_yielding.size());
 				});
 				// hide RaceMenu's own panels at once, the data follows over a few frames
 				SKSE::GetTaskInterface()->AddUITask([session] {
@@ -853,8 +871,17 @@ namespace RMA::Bridge
 			if (!movie->Invoke("_global.skse.plugins.CharGen.GetSliderData", &result, args, 2) || !result.IsObject()) {
 				return;
 			}
-			auto name = GetStr(result, "partName");
-			WithModel([&](Model& m) { m.partNames[a_sliderID] = std::move(name); });
+			PartInfo info;
+			info.value = a_value;
+			info.name = GetStr(result, "partName");
+			if (!info.name.empty()) {
+				RE::GFxValue modName;
+				RE::GFxValue formID{ GetNum(result, "formId", 0.0) };
+				if (movie->Invoke("_global.skse.plugins.CharGen.GetModName", &modName, &formID, 1) && modName.IsString()) {
+					info.plugin = modName.GetString();
+				}
+			}
+			WithModel([&](Model& m) { m.partNames[a_sliderID] = std::move(info); });
 		});
 	}
 
