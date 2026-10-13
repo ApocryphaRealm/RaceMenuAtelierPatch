@@ -1,7 +1,15 @@
-# RaceMenu Atelier - Apprentice Patch - changelog
+# RaceMenu Atelier - changelog
 
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
+
+## Private continuation - 2026-10-13
+
+The owner, 2026-10-13: "because the mod is removed from nexus, keep a copy of rma as one of our mods and give it a
+distro folder, we won't post it anywhere but we might develop it or patch it as needed as a private repo". So this
+repository is now RaceMenu Atelier itself, kept as our own mod and not posted: the proven 1.0.0 build below, shipped
+with the Norden Black theme (`themes/norden-black.ini`, back in this repository). No code changed; the RaceMenu Atelier
+1.0.1 merge waits on branch `merge-upstream-1.0.1`.
 
 ## 1.0.0 - 2026-10-04 - working
 

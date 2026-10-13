@@ -1,12 +1,20 @@
-# RaceMenu Atelier - Apprentice Patch
+# RaceMenu Atelier
 
-> **Note:** emberchain, the author of RaceMenu Atelier, has permission to incorporate this patch into RaceMenu
-> Atelier. When they do, this patch will be taken down.
+A private continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, with the Apprentice patch and the
+Norden Black theme. Kept as one of our own mods because the upstream mod was removed from Nexus (the owner,
+2026-10-13); it is not posted anywhere.
 
-A patched build of [RaceMenu Atelier](https://www.nexusmods.com/skyrimspecialedition/mods/193865) (by emberchain,
-GPL-3.0, [emberchain/RaceMenuAtelier](https://github.com/emberchain/RaceMenuAtelier) at `8db73c5`, its 1.0.0) that makes
-it work with [Apprentice - A Class Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/169288) (by Simon Magus
-and LambdaCDM). This repository is a fork: the upstream history is kept, and every change is a commit on top of it.
+- Upstream: RaceMenu Atelier by RustyOldSword (formerly emberchain), GPL-3.0 -
+  [rustyoldsword/RaceMenuAtelier](https://github.com/rustyoldsword/RaceMenuAtelier) (current, 1.0.3) and
+  [emberchain/RaceMenuAtelier](https://github.com/emberchain/RaceMenuAtelier) (the old repository, to 1.0.1). It was on
+  Nexus as mod 193865 until Nexus staff removed it; it is also on dwemermods.com (mod 4840).
+- `main` is the proven build: Atelier 1.0.0 (`8db73c5`) plus the Apprentice patch below, version 1.0.0, DLL SHA-256
+  `2409DA145E3B601AE5D46BE50A624CB36AEA491C75C98E00645B8226AB1F3A6E`, shipped with the Norden Black theme
+  (`themes/norden-black.ini`, installed as `SKSE\Plugins\RaceMenuAtelier\theme.ini`).
+- Branch `merge-upstream-1.0.1` holds the merge of upstream 1.0.1 and a build-path flag; not yet tested in game.
+
+The patch makes Atelier work with [Apprentice - A Class Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/169288)
+(by Simon Magus and LambdaCDM). The upstream history is kept, and every change is a commit on top of it.
 
 ## The problem it fixes
 
@@ -27,7 +35,7 @@ with the races - and a click called `ChangeRace(raceID)` directly. A class's `ra
   pick is marked, read from the class/trait values Apprentice shows in RaceMenu's bottom bar. Nothing in this is named
   after Apprentice except that read, so any mod that adds a list the same way is handled the same way.
 - **Themes**: Atelier's colours and corner radius are read from `SKSE\Plugins\RaceMenuAtelier\theme.ini` when that
-  file exists (the "RaceMenu Atelier - Norden Black" patch ships one); without it Atelier looks exactly as before.
+  file exists (this mod ships the Norden Black theme as that file); without it Atelier looks exactly as before.
 - **DevBench tool `atelier.control`** (for testing): the categories, the choice lists with the current pick, `choose`,
   `race`, `category`, `refresh`.
 

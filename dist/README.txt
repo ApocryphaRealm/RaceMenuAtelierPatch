@@ -1,8 +1,8 @@
-RaceMenu Atelier - Apprentice Patch
-Version 1.0.0
+RaceMenu Atelier
+Version 1.0.0 (upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme)
 
-NOTE FROM THE AUTHOR: emberchain, the author of RaceMenu Atelier, has my permission to incorporate this patch into
-RaceMenu Atelier. When they do, this patch will be taken down.
+PRIVATE: not posted anywhere. A private continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, kept
+because the upstream mod was removed from Nexus. This package is the whole mod: it replaces RaceMenu Atelier.
 
 Makes RaceMenu Atelier work with Apprentice - A Class Overhaul. Classes and traits get their own tiles under the CLASS
 and TRAIT categories instead of sitting in the race list, and choosing one records it with Apprentice exactly as
@@ -11,18 +11,13 @@ was taken as a race) and no class was recorded.
 
 Requirements
 ------------
-- RaceMenu Atelier 1.0.0 (and its requirements: SKSE64, Address Library for SKSE Plugins, RaceMenu, SKSE Menu Framework 3
-  or Apocrypha Menu Framework)
-- Apprentice - A Class Overhaul (the patch does nothing harmful without it: there are simply no class or trait tiles)
+- SKSE64, Address Library for SKSE Plugins, RaceMenu, SKSE Menu Framework 3 or Apocrypha Menu Framework
+- Apprentice - A Class Overhaul is optional (without it there are simply no class or trait tiles)
 
 Install
 -------
-Install with Mod Organizer 2 and place it BELOW RaceMenu Atelier (it must win the conflict): it replaces
-SKSE\Plugins\RaceMenuAtelier.dll with the patched build. Your RaceMenuAtelier.ini is not touched. No plugin to sort.
-
-Compatible with "RaceMenu Atelier - Norden Black": both ship the same patched DLL, so either can sit above the other.
-
-Uninstall: remove the patch; Atelier's own DLL is used again.
+Install with Mod Organizer 2 in place of RaceMenu Atelier (disable any other copy of it): the package holds
+SKSE\Plugins\RaceMenuAtelier.dll, Atelier's own RaceMenuAtelier.ini and the Norden Black theme.ini. No plugin to sort.
 
 What it changes
 ---------------
@@ -30,12 +25,17 @@ What it changes
   choice is marked. The race list shows races only.
 - A class or trait tile goes through Apprentice's own handler; Apprentice applies the choice when the menu closes, as
   it always does.
-- Theme support: if SKSE\Plugins\RaceMenuAtelier\theme.ini exists, Atelier's colours come from it (the Norden Black
-  patch ships one). Without it Atelier looks as it always did.
+- Theme support: if SKSE\Plugins\RaceMenuAtelier\theme.ini exists, Atelier's colours come from it (this package
+  ships the Norden Black theme as that file). Without it Atelier looks as it always did.
+
+Theme
+-----
+SKSE\Plugins\RaceMenuAtelier\theme.ini is the Norden Black theme (black panels, silver lines, square corners). Delete
+it to get Atelier's own colours back.
 
 Credits
 -------
-RaceMenu Atelier by emberchain (GPL-3.0) - this is a modified build of it, with its source and history at
+RaceMenu Atelier by RustyOldSword, formerly emberchain (GPL-3.0) - this is a modified build of it, with its source and history at
 https://github.com/ApocryphaRealm/RaceMenuAtelierPatch. Apprentice - A Class Overhaul by Simon Magus and LambdaCDM.
 RaceMenu by expired6978. SKSE Menu Framework by Thiago and Quantumyilmaz.
 
