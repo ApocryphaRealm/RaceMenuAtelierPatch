@@ -1,5 +1,5 @@
 RaceMenu Atelier
-Version 1.0.0 (upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme)
+Version 1.0.1 (upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme)
 
 PRIVATE: not posted anywhere. A private continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, kept
 because the upstream mod was removed from Nexus. This package is the whole mod: it replaces RaceMenu Atelier.
@@ -27,6 +27,13 @@ What it changes
   it always does.
 - Theme support: if SKSE\Plugins\RaceMenuAtelier\theme.ini exists, Atelier's colours come from it (this package
   ships the Norden Black theme as that file). Without it Atelier looks as it always did.
+
+Controller
+----------
+- L1 / R1: move between the editor on the left (categories and sliders) and the scene and presets panel on the right;
+  the D-pad moves inside the window that has the gold outline. L2 / R2 step through the categories.
+- X (PlayStation Square): Done, as R on the keyboard (switchable in Options).
+- The Class and Trait categories come directly after Race.
 
 Theme
 -----

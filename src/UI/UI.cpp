@@ -79,6 +79,7 @@ namespace RMA::UI
 			std::vector<Item>        items;
 			std::vector<int>         categoryChanged;  // per category: changed entries
 			std::vector<int>         categoryCount;
+			std::vector<int>         categoryOrder;  // display order: Race, then the choice categories (Apprentice), then the rest
 			int                      visibleRows{ 0 };
 			int                      changedTotal{ 0 };
 			std::unordered_set<double> partRequested;
@@ -135,6 +136,9 @@ namespace RMA::UI
 
 			// scene
 			bool rotating{ false };
+
+			// controller: the last input came from the pad, so the focused window is outlined
+			bool padNav{ false };
 		};
 
 		State s;
@@ -443,6 +447,35 @@ namespace RMA::UI
 			s.categoryChosen = true;
 		}
 
+		// The order the category rail shows (and the triggers step through): RaceMenu's Race category first, then the
+		// categories that hold another mod's choices (Apprentice's Class and Trait), then the rest in RaceMenu's order.
+		// Only the display order moves; indices, and so each category's colour, stay RaceMenu's.
+		void BuildCategoryOrder(const Model& a_model)
+		{
+			const int n = static_cast<int>(a_model.categories.size());
+			std::vector<int> race, choice, rest;
+			for (int i = 0; i < n; ++i) {
+				const auto& c = a_model.categories[i];
+				if (!IsAllCategory(c) && c.flag == Defs::kCategoryRace) {
+					race.push_back(i);
+					continue;
+				}
+				bool holdsChoices = false;
+				if (!IsAllCategory(c) && c.flag) {
+					for (const auto& e : a_model.entries) {
+						if (e.control == Control::Choice && e.filterFlag > 0 && (static_cast<std::uint64_t>(e.filterFlag) & c.flag) != 0) {
+							holdsChoices = true;
+							break;
+						}
+					}
+				}
+				(holdsChoices ? choice : rest).push_back(i);
+			}
+			s.categoryOrder = std::move(race);
+			s.categoryOrder.insert(s.categoryOrder.end(), choice.begin(), choice.end());
+			s.categoryOrder.insert(s.categoryOrder.end(), rest.begin(), rest.end());
+		}
+
 		void BuildItems(Model& a_model)
 		{
 			s.items.clear();
@@ -450,12 +483,13 @@ namespace RMA::UI
 			s.changedTotal = 0;
 			s.categoryChanged.assign(a_model.categories.size(), 0);
 			s.categoryCount.assign(a_model.categories.size(), 0);
+			BuildCategoryOrder(a_model);
 
 			if (!s.categoryChosen && !a_model.categories.empty()) {
 				// start on the first real category, like RaceMenu
-				for (const auto& c : a_model.categories) {
-					if (!IsAllCategory(c)) {
-						SelectCategory(&c);
+				for (const int i : s.categoryOrder) {
+					if (!IsAllCategory(a_model.categories[i])) {
+						SelectCategory(&a_model.categories[i]);
 						break;
 					}
 				}
@@ -1506,6 +1540,7 @@ namespace RMA::UI
 			save |= im::Checkbox("Typed values may exceed custom body morph ranges", &st.overdrive);
 			W::SectionTitle("INTERFACE");
 			save |= im::Checkbox("Ask before finishing the character", &st.confirmDone);
+			save |= im::Checkbox("Controller X finishes the character, as in RaceMenu", &st.gamepadDone);
 			save |= im::Checkbox("Show the scene and presets panel", &st.sidePanel);
 			im::SetNextItemWidth(u * 10.0f);
 			im::SliderFloat("Interface size", &st.uiScale, 0.7f, 1.6f, "%.2f");
@@ -1669,7 +1704,7 @@ namespace RMA::UI
 				s.search[0] = '\0';
 				SelectCategory(nullptr);
 			}
-			for (int i = 0; i < static_cast<int>(a_model.categories.size()); ++i) {
+			for (const int i : s.categoryOrder) {
 				const auto& c = a_model.categories[i];
 				if (IsAllCategory(c) || (i < static_cast<int>(s.categoryCount.size()) && s.categoryCount[i] == 0)) {
 					continue;
@@ -1789,6 +1824,19 @@ namespace RMA::UI
 			im::EndDisabled();
 		}
 
+		// controller: outline the window the pad's D-pad is moving in (called inside that window, before End)
+		void OutlineIfPadFocused()
+		{
+			if (!s.padNav || !im::IsWindowFocused(ImGuiMCP::ImGuiFocusedFlags_RootAndChildWindows)) {
+				return;
+			}
+			const auto  pos = im::GetWindowPos();
+			const auto  size = im::GetWindowSize();
+			const float t = std::max(2.0f, std::floor(U() * 0.12f));
+			const ImVec2 inset{ t * 0.5f, t * 0.5f };
+			dl::AddRect(im::GetForegroundDrawList(), pos + inset, pos + size - inset, Color::Gold, im::GetStyle()->WindowRounding, 0, t);
+		}
+
 		void RenderEditor(Model& a_model)
 		{
 			const auto* io = im::GetIO();
@@ -1829,6 +1877,7 @@ namespace RMA::UI
 			ConfirmModal("##confirmreset", s.openResetAll, "Reset every change?",
 				std::format("{} changed sliders, colours and textures return to how they were when RaceMenu opened. Race and sex stay as they are. This can be undone.", s.changedTotal),
 				"Reset", [&a_model] { a_model.ResetAll(); });
+			OutlineIfPadFocused();
 			im::End();
 		}
 
@@ -2069,6 +2118,7 @@ namespace RMA::UI
 						Settings::Get().sidePanel = true;
 						Settings::Get().Save();
 					}
+					OutlineIfPadFocused();
 				}
 				im::End();
 				return;
@@ -2106,6 +2156,7 @@ namespace RMA::UI
 			if (W::Collapsible("##tools", Icon::Wrench, "RaceMenu tools", s.toolsOpen)) {
 				ToolsSection();
 			}
+			OutlineIfPadFocused();
 			im::End();
 		}
 
@@ -2115,6 +2166,17 @@ namespace RMA::UI
 		void HandleHotkeys(Model& a_model)
 		{
 			const auto* io = im::GetIO();
+			// controller: a pad button or the left stick makes the pad the input in use (the focused window is then
+			// outlined); moving or clicking the mouse hands it back, so mouse and keyboard look exactly as before
+			for (int k = ImGuiMCP::ImGuiKey_GamepadStart; k <= ImGuiMCP::ImGuiKey_GamepadLStickDown; ++k) {
+				if (im::IsKeyPressed(static_cast<ImGuiMCP::ImGuiKey>(k), false)) {
+					s.padNav = true;
+					break;
+				}
+			}
+			if (io->MouseDelta.x != 0.0f || io->MouseDelta.y != 0.0f || im::IsMouseClicked(0) || im::IsMouseClicked(1)) {
+				s.padNav = false;
+			}
 			if (io->WantTextInput) {
 				return;
 			}
@@ -2136,7 +2198,19 @@ namespace RMA::UI
 			if (popup) {
 				return;
 			}
-			if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_R, false)) {
+			// controller: the bumpers move the focus between the two windows - L1 the editor on the left (categories and
+			// sliders), R1 the scene and presets panel on the right - and the D-pad then moves inside the focused one.
+			// Not while an item is being adjusted: ImGui holds L1/R1 there for slower and faster slider steps.
+			if (!im::IsAnyItemActive()) {
+				if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadL1, false)) {
+					im::SetWindowFocus(kEditorWindow);
+				} else if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadR1, false)) {
+					im::SetWindowFocus(Settings::Get().sidePanel ? kSideWindow : kSideTabWindow);
+				}
+			}
+			// R on the keyboard, or X on the controller (PlayStation Square) as in RaceMenu, presses Done
+			const bool padDone = Settings::Get().gamepadDone && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceLeft, false);
+			if (padDone || im::IsKeyPressed(ImGuiMCP::ImGuiKey_R, false)) {
 				if (Settings::Get().confirmDone) {
 					s.openDone = true;
 				} else {
@@ -2157,7 +2231,8 @@ namespace RMA::UI
 			// controller: triggers step through the categories
 			if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadL2, false) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadR2, false)) {
 				std::vector<const Category*> cats{ nullptr };
-				for (std::size_t i = 0; i < a_model.categories.size(); ++i) {
+				for (const int ci : s.categoryOrder) {
+					const auto i = static_cast<std::size_t>(ci);
 					if (!IsAllCategory(a_model.categories[i]) && (i >= s.categoryCount.size() || s.categoryCount[i] > 0)) {
 						cats.push_back(&a_model.categories[i]);
 					}

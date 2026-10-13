@@ -12,6 +12,7 @@ namespace RMA
 		bool  sexFilter{ true };
 		bool  overdrive{ false };
 		bool  confirmDone{ true };
+		bool  gamepadDone{ true };  // controller X (PlayStation Square) presses Done, as in RaceMenu
 		bool  groupHeaders{ true };
 		bool  showTechnicalNames{ false };
 		float rotateSpeed{ 0.35f };  // degrees per pixel of mouse drag

@@ -68,6 +68,8 @@ namespace RMA
 				overdrive = ParseBool(value, overdrive);
 			} else if (key == "bConfirmDone") {
 				confirmDone = ParseBool(value, confirmDone);
+			} else if (key == "bGamepadDone") {
+				gamepadDone = ParseBool(value, gamepadDone);
 			} else if (key == "bGroupHeaders") {
 				groupHeaders = ParseBool(value, groupHeaders);
 			} else if (key == "bShowTechnicalNames") {
@@ -116,6 +118,8 @@ namespace RMA
 		out << "; let typed values go past the registered range of custom body morphs\n";
 		out << "bOverdrive = " << (overdrive ? 1 : 0) << "\n";
 		out << "bConfirmDone = " << (confirmDone ? 1 : 0) << "\n";
+		out << "; controller X (PlayStation Square) presses Done, as in RaceMenu\n";
+		out << "bGamepadDone = " << (gamepadDone ? 1 : 0) << "\n";
 		out << "bGroupHeaders = " << (groupHeaders ? 1 : 0) << "\n";
 		out << "bShowTechnicalNames = " << (showTechnicalNames ? 1 : 0) << "\n";
 		out << "; degrees per pixel when dragging the character\n";

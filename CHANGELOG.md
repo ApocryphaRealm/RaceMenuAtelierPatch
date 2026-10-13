@@ -3,6 +3,32 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
+## 1.0.1 - 2026-10-13 - untested
+
+Asked for by the owner, 2026-10-13, playing with a controller: "I want the trait and class categories to be directly
+after the race category"; "when you press X with controller, it will automatically press the done button, just like
+the original race menu"; and the D-pad "only affects the top right window for scene and presets, but not the left
+window".
+
+### Changed
+- Category order: the Class and Trait categories (any category holding another mod's choices) now come directly after
+  Race in the category rail, and the controller triggers step through them in that order. The rest keep RaceMenu's
+  order, and each category keeps its colour.
+
+### Added
+- Controller X (PlayStation Square) presses Done, as R does on the keyboard and as in RaceMenu: with "Ask before
+  finishing the character" on (the default) it opens the same confirmation, otherwise it finishes at once. Switchable
+  in Options ("Controller X finishes the character", `bGamepadDone` in RaceMenuAtelier.ini, on by default).
+- Controller window switching: L1 moves the focus to the editor on the left (categories and sliders), R1 to the scene
+  and presets panel on the right (or its tab when the panel is hidden); the D-pad then moves inside the focused window.
+  Not while a slider is being adjusted, where ImGui uses L1/R1 for slower and faster steps.
+- While the controller is in use, the focused window has a gold outline; moving or clicking the mouse removes it, so
+  mouse and keyboard look as before.
+
+### Build
+- Built through the shared build environment with `/d1trimfile`: no build-machine path in the DLL, no user folder in
+  the PDB.
+
 ## Private continuation - 2026-10-13
 
 The owner, 2026-10-13: "because the mod is removed from nexus, keep a copy of rma as one of our mods and give it a
