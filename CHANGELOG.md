@@ -10,27 +10,52 @@ after the race category"; "when you press X with controller, it will automatical
 the original race menu"; and, after trying the first build (L1/R1 window switching with a gold outline), "I want the
 left stick to change focus from the left to the right pane, and I want the right stick to be character rotation, just
 like the original race menu", with every item reachable by the D-pad and no white frame to enter and leave with A and B.
+Then, trying that build: "Race menu is still generating a frame around certain areas ... I would rather just be able to
+go and use the D-pad. Similarly to how AMF works, where it remembers where you last had your cursor: if I'm on race,
+then I should D-pad right to enter the races without having to press any other button. And then if I press D-pad left
+to get out of there, then it goes back to race, and then I can D-pad down to go to trait"; on a slider "I don't want to
+leave the menu once I get to the end of it", with a guard so a held D-pad left goes only to the far left before leaving;
+and "I want right stick click to toggle zoom in race menu."
 
 ### Changed
 - Category order: the Class and Trait categories (any category holding another mod's choices) now come directly after
   Race in the category rail, and the controller triggers step through them in that order. The rest keep RaceMenu's
   order, and each category keeps its colour.
-- Controller navigation, as in RaceMenu: the D-pad moves freely over every item of a window - categories, sliders,
-  race and class cards, presets - with no area to enter with A and leave with B, and no white frame round an area; only
-  the highlighted item shows. A activates, B backs out of a popup.
+- Controller navigation in two columns, D-pad only, as in AMF's own menu: the category list, and beside it the chosen
+  category's content (the race list, the sliders, the options). Up and down in the category list choose the category
+  and its content shows at once. Right enters the content, on the item last highlighted there (each category remembers
+  its own, and its scroll), or on a first visit on the current race or choice. In the content up and down move between
+  items; left moves left one item at a time and, pressed again once nothing is further left, returns to that same
+  category - a held left repeats only as far as the far left and does not leave, and the press that reaches the far left
+  does not leave either. B returns to the category list from anywhere in the content. Nothing is entered with A or left
+  with B any more, no area is ever framed, and the highlighted item is marked with a frame of its own (Atelier's items
+  drew no highlight before, so only the areas showed one).
 - D-pad left/right on a slider steps it (by its interval, repeating while held), and on an option row (hair, eyes and
-  other parts) moves to the previous or next option; up and down move between items. A on a slider no longer jumps its
-  value to the mouse pointer. The step arrows and the typed value stay for the mouse and take no D-pad stop.
+  other parts) moves to the previous or next option; on these rows left and right never leave for the category list,
+  even at the end of the range - move up or down to another row first. A on a slider no longer jumps its value to the
+  mouse pointer. The step arrows and the typed value stay for the mouse and take no D-pad stop.
+- The lists inside the scene and presets panel and inside the texture and head-part pickers are reached and left with
+  the D-pad directly, with no frame round them; B closes a picker, and B on a confirmation (Finish, Reset, Load preset)
+  is Cancel.
 
 ### Added
 - Controller X (PlayStation Square) presses Done, as R does on the keyboard and as in RaceMenu: with "Ask before
   finishing the character" on (the default) it opens the same confirmation, otherwise it finishes at once. Switchable
   in Options ("Controller X finishes the character", `bGamepadDone` in RaceMenuAtelier.ini, on by default).
-- Left stick left/right switches between the two windows - left the editor (categories and sliders), right the scene
-  and presets panel (or its tab when the panel is hidden) - once per push, not repeating while held. Up and down on the
-  left stick do nothing. In RaceMenu's own interface (F4) the left stick is the game's as before.
+- Left stick left/right switches between the two windows - left the editor (back into the column it was left in),
+  right the scene and presets panel (or its tab when the panel is hidden) - once per push, not repeating while held. Up
+  and down on the left stick do nothing. In RaceMenu's own interface (F4) the left stick is the game's as before.
+- Right stick click (R3) toggles the camera between the whole body and the close-up on the face, as Z does (RaceMenu's
+  own ZoomPC); the right stick still turns the character.
 
 ### Fixed
+- Controller: the white frame round an area, and A to enter it and B to leave it, were still there in the first rebuild.
+  The menu framework runs Dear ImGui 1.90.8 (the version the SKSE Menu Framework 3 header is generated from), but that
+  build took it for 1.92: it switched its child flattening off below 1.91 (and the 1.92 flag it would have used does not
+  exist in 1.90.8), so the category list and the content stayed ImGui child windows that are one framed item of the
+  editor each. Now each column keeps its navigation to itself, is never an item of the editor, and the editor moves the
+  focus between the two itself; the D-pad step on sliders and the no-stop step arrows, also switched off by that test,
+  now work.
 - Controller: the right stick turns the character while the Atelier is open, as in RaceMenu (full tilt at the Q/E
   speed; not while a slider is held with A, where the menu framework gives the right stick to that slider). The menu
   framework keeps every stick event from the game while the editor holds the input, so RaceMenu and rotation mods such

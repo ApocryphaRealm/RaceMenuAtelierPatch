@@ -7,6 +7,42 @@ namespace RMA::UI::Widgets
 	namespace im = ImGuiMCP;
 	namespace dl = ImGuiMCP::ImDrawListManager;
 
+	namespace
+	{
+		// the item the controller (or the arrow keys) has highlighted this frame: Atelier's items draw themselves over
+		// an invisible button, which draws no highlight of its own, so the highlight is drawn here, last
+		struct FocusMark
+		{
+			bool   set{ false };
+			ImVec2 min{};
+			ImVec2 max{};
+			ImVec2 clipMin{};
+			ImVec2 clipMax{};
+		};
+		FocusMark g_mark;
+	}
+
+	void MarkFocus()
+	{
+		if (!im::IsItemFocused() || !im::GetIO()->NavVisible) {
+			return;
+		}
+		const auto wpos = im::GetWindowPos();
+		g_mark = { true, im::GetItemRectMin(), im::GetItemRectMax(), wpos, wpos + im::GetWindowSize() };
+	}
+
+	void FlushFocusMark()
+	{
+		if (!g_mark.set) {
+			return;
+		}
+		g_mark.set = false;
+		auto* list = im::GetForegroundDrawList();
+		dl::PushClipRect(list, g_mark.clipMin, g_mark.clipMax, false);
+		dl::AddRect(list, g_mark.min + ImVec2{ 1.0f, 1.0f }, g_mark.max - ImVec2{ 1.0f, 1.0f }, Color::GoldBright, Round(U() * 0.25f), 0, 2.0f);
+		dl::PopClipRect(list);
+	}
+
 	void Tooltip(const char* a_text)
 	{
 		if (!a_text || !*a_text) {
@@ -26,6 +62,7 @@ namespace RMA::UI::Widgets
 		const float s = a_size > 0.0f ? a_size : im::GetFrameHeight();
 		const auto  pos = im::GetCursorScreenPos();
 		const bool  pressed = im::InvisibleButton(a_id, { s, s });
+		MarkFocus();
 		const bool  hovered = im::IsItemHovered();
 		const bool  held = im::IsItemActive();
 		auto*       list = im::GetWindowDrawList();
@@ -61,6 +98,7 @@ namespace RMA::UI::Widgets
 
 		const auto pos = im::GetCursorScreenPos();
 		const bool pressed = im::InvisibleButton(a_id, size);
+		MarkFocus();
 		const bool hovered = im::IsItemHovered();
 		const bool held = im::IsItemActive();
 		auto*      list = im::GetWindowDrawList();
@@ -114,6 +152,7 @@ namespace RMA::UI::Widgets
 		if (im::InvisibleButton(a_id, { width, height })) {
 			a_open = !a_open;
 		}
+		MarkFocus();
 		const bool hovered = im::IsItemHovered();
 		auto*      list = im::GetWindowDrawList();
 		dl::AddRectFilled(list, pos, pos + ImVec2{ width, height }, hovered ? Color::PanelHover : Color::Panel, Round(u * 0.3f), 0);
@@ -146,6 +185,7 @@ namespace RMA::UI::Widgets
 	{
 		const auto pos = im::GetCursorScreenPos();
 		const bool pressed = im::InvisibleButton(a_id, a_size);
+		MarkFocus();
 		const bool hovered = im::IsItemHovered();
 		auto*      list = im::GetWindowDrawList();
 		DrawChecker(list, pos, pos + a_size, a_size.y * 0.5f);
@@ -186,6 +226,7 @@ namespace RMA::UI::Widgets
 		const float u = U();
 		const auto  pos = im::GetCursorScreenPos();
 		im::InvisibleButton(a_id, a_size, ImGuiMCP::ImGuiButtonFlags_PressedOnClick);
+		MarkFocus();
 		const bool hovered = im::IsItemHovered();
 		const bool active = im::IsItemActive();
 		state.activated = im::IsItemActivated();

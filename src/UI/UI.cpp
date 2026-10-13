@@ -19,50 +19,71 @@ namespace RMA::UI
 		constexpr auto kSideWindow = "Scene##RMA.Side";
 		constexpr auto kSideTabWindow = "SceneTab##RMA.SideTab";
 
-		// Controller navigation needs two ImGui 1.92 values that the SKSE Menu Framework 3 header only has older
-		// copies of (its ImGuiItemFlags_NoNav is 1 << 3, ImGui 1.92's 1 << 1; it has no ImGuiChildFlags_NavFlattened).
-		// The menu framework hosting the editor runs ImGui 1.92; on an older ImGui they are left out.
-		constexpr ImGuiMCP::ImGuiChildFlags kChildNavFlattened = 1 << 8;  // ImGuiChildFlags_NavFlattened (1.90.9+)
-		constexpr ImGuiMCP::ImGuiItemFlags  kItemNoNav = 1 << 1;          // ImGuiItemFlags_NoNav (1.91+)
-
-		bool ModernNav()
-		{
-			static const bool modern = [] {
-				const char* version = ImGuiMCP::GetVersion();
-				int         major = 0, minor = 0;
-				return version && std::sscanf(version, "%d.%d", &major, &minor) == 2 && (major > 1 || minor >= 91);
-			}();
-			return modern;
-		}
-
-		// a child window the D-pad moves into and out of freely, with no A to enter it and B to leave it
-		ImGuiMCP::ImGuiChildFlags NavChild()
-		{
-			return ModernNav() ? kChildNavFlattened : ImGuiMCP::ImGuiChildFlags_None;
-		}
+		// Controller navigation. The menu framework hosting the editor (AMF, like SKSE Menu Framework) runs Dear ImGui
+		// 1.90.8, the version the SKSE Menu Framework 3 header was generated from, so its flag values are the right ones.
+		// ImGui's own child navigation is not used for the editor's two columns: a child that is not flattened is one
+		// framed item of its parent (A enters it, B leaves it - the white frame round an area), and ImGui 1.90.8's
+		// flattening is for children that do not scroll (side by side and scrolling, the crossing works one way only, as
+		// AMF found on its own two panes). So each column keeps its navigation to itself, never shows as an item of the
+		// editor, and the editor moves the focus between them itself (see ColumnNavigation), as AMF does.
 
 		// the next items take no D-pad stop (the slider's step arrows and typed value: the D-pad steps the track itself)
 		void PushNoNav()
 		{
-			if (ModernNav()) {
-				ImGuiMCP::PushItemFlag(kItemNoNav, true);
-			}
+			ImGuiMCP::PushItemFlag(ImGuiMCP::ImGuiItemFlags_NoNav, true);
 		}
 
 		void PopNoNav()
 		{
-			if (ModernNav()) {
-				ImGuiMCP::PopItemFlag();
-			}
+			ImGuiMCP::PopItemFlag();
 		}
 
+		// A column of the editor: a child window that is never an item of the editor (so never framed, never entered
+		// with A or left with B); its own items navigate as usual.
+		void BeginColumn(const char* a_id, ImVec2 a_size)
+		{
+			PushNoNav();  // the child, as an item of the editor
+			ImGuiMCP::BeginChild(a_id, a_size, ImGuiMCP::ImGuiChildFlags_None);
+			ImGuiMCP::PushItemFlag(ImGuiMCP::ImGuiItemFlags_NoNav, false);  // its own items
+		}
+
+		void EndColumn()
+		{
+			ImGuiMCP::PopItemFlag();
+			ImGuiMCP::EndChild();
+			PopNoNav();
+		}
+
+		// A scrolling list inside a panel or popup, under the items that lead to it: flattened, so the D-pad moves
+		// straight from the item above into the list and out of it again, with no frame round the list.
+		void BeginFlatList(const char* a_id, ImVec2 a_size)
+		{
+			ImGuiMCP::BeginChild(a_id, a_size, ImGuiMCP::ImGuiChildFlags_None, ImGuiMCP::ImGuiWindowFlags_NavFlattened);
+		}
+
+		// Puts the controller highlight on the item just drawn, without pressing it (SetKeyboardFocusHere would press
+		// it). Only while this window has the focus.
+		void NavHere()
+		{
+			if (!ImGuiMCP::IsWindowFocused()) {
+				return;
+			}
+			const ImVec2 start = ImGuiMCP::GetWindowPos() + ImGuiMCP::GetCursorStartPos();
+			const ImGuiMCP::ImRect rel{ ImGuiMCP::GetItemRectMin() - start, ImGuiMCP::GetItemRectMax() - start };
+			ImGuiMCP::SetNavID(ImGuiMCP::GetItemID(), ImGuiMCP::ImGuiNavLayer_Main, 0, rel);
+		}
+
+		int g_valueRowFrame = -1;  // the frame a slider or option row last held the highlight
+
 		// Controller, as in RaceMenu: D-pad left/right on the focused slider or option steps it instead of moving the
-		// focus (the item takes the two keys from ImGui's navigation while it has the focus). Call right after the item.
+		// focus (the item takes the two keys from ImGui's navigation while it has the focus), and never leaves the row
+		// for the category list. Call right after the item.
 		int PadStep()
 		{
-			if (!ModernNav() || !ImGuiMCP::IsItemFocused() || ImGuiMCP::IsItemActive()) {
+			if (!ImGuiMCP::IsItemFocused() || ImGuiMCP::IsItemActive()) {
 				return 0;
 			}
+			g_valueRowFrame = ImGuiMCP::GetFrameCount();
 			const auto id = ImGuiMCP::GetItemID();
 			ImGuiMCP::SetKeyOwner(ImGuiMCP::ImGuiKey_GamepadDpadLeft, id, 0);
 			ImGuiMCP::SetKeyOwner(ImGuiMCP::ImGuiKey_GamepadDpadRight, id, 0);
@@ -112,6 +133,10 @@ namespace RMA::UI
 			int         stripe{ 0 };  // alternates the row tone inside a run
 			std::vector<std::size_t> members;  // Choices: the entries, in list order
 		};
+
+		constexpr int kColumnNone = -1;
+		constexpr int kColumnCategories = 0;
+		constexpr int kColumnContent = 1;
 
 		struct State
 		{
@@ -195,6 +220,24 @@ namespace RMA::UI
 
 			// controller: the left stick is pushed left or right (one window switch per push)
 			bool stickPushed{ false };
+
+			// controller: the editor's two columns - the category list and the chosen category's content. The D-pad
+			// moves inside a column; right on a category enters its content, left at the far left of the content (or B)
+			// comes back to that category. Each category's content is a window of its own, so ImGui remembers the item
+			// last highlighted there (and how far it was scrolled).
+			int             column{ kColumnCategories };  // the column the D-pad was last in
+			int             focusRequest{ kColumnNone };   // a column to move the focus into this frame
+			bool            forceColumn{ false };          // on opening: put the focus in a column even before the D-pad is used
+			bool            rootFocused{ false };          // this frame: the editor itself (no column) has the focus
+			bool            categoriesFocused{ false };    // this frame
+			bool            contentFocused{ false };       // this frame
+			bool            landCategory{ false };         // highlight the chosen category (on entering the list, or after a change)
+			bool            landOnCurrent{ false };        // entering content never visited: highlight the current race or choice
+			bool            initPending{ false };          // ... or, with none, the first item (next frame)
+			std::string     contentKey;                    // the content window shown
+			bool            leftPending{ false };          // D-pad left pressed on the content: leave if ImGui moved nothing
+			ImGuiMCP::ImGuiID leftFrom{ 0 };
+			bool            popupLastFrame{ false };
 		};
 
 		State s;
@@ -459,6 +502,12 @@ namespace RMA::UI
 			s.nameSex = -2;
 			s.categoryChosen = false;
 			s.rotating = false;
+			s.column = kColumnCategories;
+			s.focusRequest = kColumnNone;
+			s.forceColumn = true;
+			s.leftPending = false;
+			s.landCategory = true;
+			s.rootFocused = s.categoriesFocused = s.contentFocused = false;
 		}
 
 		void EndSession()
@@ -514,8 +563,8 @@ namespace RMA::UI
 		{
 			s.categoryRaw = a_category ? a_category->raw : std::string{};
 			s.categoryFlag = a_category ? a_category->flag : 0;
-			s.scrollTop = true;
 			s.categoryChosen = true;
+			s.landCategory = true;  // the highlight follows a change made by a trigger, a click or DevBench
 		}
 
 		// The order the category rail shows (and the triggers step through): RaceMenu's Race category first, then the
@@ -904,6 +953,7 @@ namespace RMA::UI
 			const float boxW = right - g.ctrl - g.u * 0.3f - boxX;
 			im::SetCursorScreenPos({ boxX, ctrlY });
 			const bool clicked = im::InvisibleButton("##readout", { boxW, g.ctrl });
+			W::MarkFocus();
 			const bool hovered = im::IsItemHovered();
 			if (const int pad = PadStep(); pad != 0) {
 				const int to = std::clamp(cur + pad, minV, maxV);
@@ -983,6 +1033,7 @@ namespace RMA::UI
 			const float  width = right - (a_pos.x + g.padX);
 			const ImVec2 pos{ a_pos.x + g.padX, ctrlY };
 			const bool   clicked = im::InvisibleButton("##texture", { width, g.ctrl });
+			W::MarkFocus();
 			const bool   hovered = im::IsItemHovered();
 			dl::AddRectFilled(list, pos, pos + ImVec2{ width, g.ctrl }, hovered ? Color::FrameHover : Color::Frame, Round(g.u * 0.25f), 0);
 			DrawIcon(list, pos + ImVec2{ g.u * 0.8f, g.ctrl * 0.5f }, Icon::Brush, Color::Gold);
@@ -1064,8 +1115,13 @@ namespace RMA::UI
 				im::PushID(e.key.c_str());
 				im::SetCursorScreenPos(pos);
 				const bool  clicked = im::InvisibleButton("##race", { cardW, a_cardH });
+				W::MarkFocus();
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentRace(e);
+				if (current && s.landOnCurrent) {
+					NavHere();
+					s.landOnCurrent = false;
+				}
 				const float rounding = Round(u * 0.3f);
 
 				dl::AddRectFilled(list, pos, max, hovered ? Color::RowHover : Color::Row, rounding, 0);
@@ -1117,8 +1173,13 @@ namespace RMA::UI
 				im::PushID(e.key.c_str());
 				im::SetCursorScreenPos(pos);
 				const bool  clicked = im::InvisibleButton("##choice", { cardW, a_cardH });
+				W::MarkFocus();
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentChoice(e);
+				if (current && s.landOnCurrent) {
+					NavHere();
+					s.landOnCurrent = false;
+				}
 				const float rounding = Round(u * 0.3f);
 
 				dl::AddRectFilled(list, pos, max, hovered ? Color::RowHover : Color::Row, rounding, 0);
@@ -1423,7 +1484,7 @@ namespace RMA::UI
 			}
 
 			const float footerH = im::GetFrameHeight() + im::GetStyle()->ItemSpacing.y;
-			im::BeginChild("##list", { 0.0f, -footerH });
+			BeginFlatList("##list", { 0.0f, -footerH });
 			ApplyFont();
 			if (shown.empty()) {
 				im::TextColored(ToVec4(Color::TextFaint), "%s", catalog.empty() ? "No textures are registered for this slot." : "No matching textures.");
@@ -1551,7 +1612,7 @@ namespace RMA::UI
 				im::TextColored(ToVec4(Color::TextFaint), "%zu of %zu parts", shown.size(), a_model.headParts.size());
 			}
 
-			im::BeginChild("##parts", { 0.0f, 0.0f }, ImGuiMCP::ImGuiChildFlags_None);
+			BeginFlatList("##parts", { 0.0f, 0.0f });
 			ApplyFont();
 			const int  current = static_cast<int>(std::lround(e->position));
 			const float rowH = im::GetTextLineHeightWithSpacing() * 1.25f;
@@ -1614,7 +1675,8 @@ namespace RMA::UI
 				im::CloseCurrentPopup();
 			}
 			im::SameLine();
-			if (W::Button("##cancel", Icon::Close, "Cancel", { u * 9.0f, u * 1.8f }) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false)) {
+			if (W::Button("##cancel", Icon::Close, "Cancel", { u * 9.0f, u * 1.8f }) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false) ||
+				im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceRight, false)) {
 				im::CloseCurrentPopup();
 			}
 			im::EndPopup();
@@ -1764,17 +1826,34 @@ namespace RMA::UI
 
 		void RenderCategories(Model& a_model, ImVec2 a_size)
 		{
-			im::BeginChild("##categories", a_size, NavChild());
+			if (s.focusRequest == kColumnCategories) {
+				im::SetNextWindowFocus();
+				s.focusRequest = kColumnNone;
+				s.landCategory = true;
+			}
+			BeginColumn("##categories", a_size);
+			s.categoriesFocused = im::IsWindowFocused();
 			ApplyFont();
 			const float u = U();
 			const float h = std::floor(u * 1.85f);
 			const float width = im::GetContentRegionAvail().x;
 			auto*       list = im::GetWindowDrawList();
 			const int   active = s.search[0] ? -2 : ActiveCategory(a_model);
+			// the highlight is put on the chosen category this frame, so where it stood before does not count
+			const bool  landing = s.landCategory;
+			const bool  navVisible = im::GetIO()->NavVisible;
 
 			const auto entry = [&](const char* a_id, const char* a_icon, const std::string& a_label, bool a_selected, int a_changed, ImU32 a_hue) {
 				const auto pos = im::GetCursorScreenPos();
-				const bool clicked = im::InvisibleButton(a_id, { width, h });
+				bool       clicked = im::InvisibleButton(a_id, { width, h });
+				W::MarkFocus();
+				if (landing && a_selected) {
+					NavHere();
+				}
+				// D-pad up/down choose the category under the highlight, and its content shows beside the list
+				if (!landing && s.categoriesFocused && navVisible && !a_selected && im::IsItemFocused()) {
+					clicked = true;
+				}
 				const bool hovered = im::IsItemHovered();
 				if (a_selected || hovered) {
 					dl::AddRectFilled(list, pos, pos + ImVec2{ width, h }, a_selected ? WithAlpha(a_hue, 0.2f) : Color::RowHover, Round(u * 0.3f), 0);
@@ -1812,12 +1891,41 @@ namespace RMA::UI
 				}
 				im::PopID();
 			}
-			im::EndChild();
+			if (landing) {
+				s.landCategory = false;
+			}
+			EndColumn();
 		}
 
 		void RenderList(Model& a_model, ImVec2 a_size)
 		{
-			im::BeginChild("##list", a_size, NavChild());
+			// each category's content is a window of its own (the search results one more), so ImGui keeps the item last
+			// highlighted in each, and its scroll
+			const std::string key = s.search[0] ? std::string("##content.search") : std::format("##content.{}.{}", s.categoryRaw, s.categoryFlag);
+			if (key != s.contentKey) {
+				// the category changed (a trigger, a click) while the content had the focus: it follows into the new one
+				if (s.contentFocused && s.focusRequest == kColumnNone) {
+					s.focusRequest = kColumnContent;
+				}
+				s.contentKey = key;
+			}
+			const bool entering = s.focusRequest == kColumnContent;
+			if (entering) {
+				im::SetNextWindowFocus();
+				s.focusRequest = kColumnNone;
+			}
+			BeginColumn(key.c_str(), a_size);
+			s.contentFocused = im::IsWindowFocused();
+			if (s.contentFocused && im::GetFocusID() == 0) {
+				if (s.initPending) {
+					im::NavInitWindow(im::GetCurrentWindow(), true);  // the first item
+					s.initPending = false;
+				} else if (entering) {
+					s.landOnCurrent = true;  // first visit: the current race or choice, if this content has one
+				}
+			} else {
+				s.initPending = false;
+			}
 			ApplyFont();
 			if (s.scrollTop) {
 				im::SetScrollY(0.0f);
@@ -1889,10 +1997,16 @@ namespace RMA::UI
 			im::SetCursorScreenPos(origin + ImVec2{ 0.0f, y });
 			im::Dummy({ 1.0f, 1.0f });
 
+			if (s.landOnCurrent) {
+				// no current race or choice here: the first item, once ImGui has seen this content's items
+				s.landOnCurrent = false;
+				s.initPending = s.contentFocused;
+			}
+
 			ContextPopup(a_model);
 			ColorPopup(a_model);
 			TexturePopup(a_model);
-			im::EndChild();
+			EndColumn();
 		}
 
 		void RenderFooter(Model& a_model)
@@ -1920,6 +2034,54 @@ namespace RMA::UI
 			im::EndDisabled();
 		}
 
+		// Controller: moving between the editor's two columns, after both are drawn (a move shows next frame).
+		//  - Category list: up/down choose the category (RenderCategories); right enters its content.
+		//  - Content: up/down move between items. On a slider or option row left/right change the value and never leave
+		//    it. On any other row left moves left one item at a time; a fresh press of left when nothing is further left
+		//    (ImGui moved nothing) goes back to the category - a held left repeats only up to the far left and does not
+		//    leave, and the press that arrives at the far left does not leave either. B goes back from any row.
+		//  - The editor itself (after a click on its toolbar, or on opening) passes the D-pad on to the last column.
+		void ColumnNavigation()
+		{
+			const auto* io = im::GetIO();
+			const bool  popup = AnyPopupOpen();
+			const bool  popupBefore = s.popupLastFrame;  // B that closed a popup does not also go back
+			s.popupLastFrame = popup;
+			if (s.categoriesFocused) {
+				s.column = kColumnCategories;
+			} else if (s.contentFocused) {
+				s.column = kColumnContent;
+			}
+			if (popup || popupBefore || io->WantTextInput || im::IsAnyItemActive() || s.focusRequest != kColumnNone) {
+				s.leftPending = false;
+				return;
+			}
+			const bool onValueRow = g_valueRowFrame == im::GetFrameCount();
+			if (s.categoriesFocused) {
+				s.forceColumn = false;
+				if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadDpadRight, false)) {
+					s.focusRequest = kColumnContent;
+				}
+			} else if (s.contentFocused) {
+				s.forceColumn = false;
+				if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceRight, false)) {
+					s.focusRequest = kColumnCategories;
+					s.leftPending = false;
+				} else if (s.leftPending) {
+					s.leftPending = false;
+					if (!onValueRow && im::GetFocusID() == s.leftFrom) {
+						s.focusRequest = kColumnCategories;
+					}
+				} else if (!onValueRow && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadDpadLeft, false)) {
+					s.leftPending = true;
+					s.leftFrom = im::GetFocusID();
+				}
+			} else if (s.forceColumn || (s.rootFocused && io->NavVisible)) {
+				s.forceColumn = false;
+				s.focusRequest = s.column;
+			}
+		}
+
 		void RenderEditor(Model& a_model)
 		{
 			const auto* io = im::GetIO();
@@ -1938,6 +2100,7 @@ namespace RMA::UI
 			ApplyFont();
 			const float u = U();
 			s.editorRight = margin + width;
+			s.rootFocused = im::IsWindowFocused();  // the editor itself, not one of its columns
 
 			RenderHeader(a_model);
 			im::Dummy({ 1.0f, u * 0.15f });
@@ -1960,6 +2123,7 @@ namespace RMA::UI
 			ConfirmModal("##confirmreset", s.openResetAll, "Reset every change?",
 				std::format("{} changed sliders, colours and textures return to how they were when RaceMenu opened. Race and sex stay as they are. This can be undone.", s.changedTotal),
 				"Reset", [&a_model] { a_model.ResetAll(); });
+			ColumnNavigation();
 			im::End();
 		}
 
@@ -2040,7 +2204,7 @@ namespace RMA::UI
 			if (!s.presetInfoOpen.empty()) {
 				listH += u * 9.0f;
 			}
-			im::BeginChild("##presets", { 0.0f, listH }, NavChild());
+			BeginFlatList("##presets", { 0.0f, listH });
 			ApplyFont();
 			if (a_model.presetFiles.empty()) {
 				im::TextColored(ToVec4(Color::TextFaint), "No presets in SKSE\\Plugins\\CharGen\\Presets");
@@ -2279,7 +2443,18 @@ namespace RMA::UI
 				return;
 			}
 			if (stickSwitch && !im::IsAnyItemActive()) {
-				im::SetWindowFocus(lx < 0.0f ? kEditorWindow : (Settings::Get().sidePanel ? kSideWindow : kSideTabWindow));
+				if (lx < 0.0f) {
+					s.focusRequest = s.column;  // back into the editor, in the column it was left in
+				} else {
+					im::SetWindowFocus(Settings::Get().sidePanel ? kSideWindow : kSideTabWindow);
+				}
+			}
+			// B is the editor's own while the editor has the focus (back to the category list, see ColumnNavigation):
+			// ImGui's B would leave a column for the window around it and frame the column. Popups, a text field, a held
+			// item and every other window (the scene panel, the menu framework's own menu) keep ImGui's B.
+			if ((s.rootFocused || s.categoriesFocused || s.contentFocused) && !im::IsAnyItemActive()) {
+				constexpr ImGuiMCP::ImGuiID kBackOwner = 0x524D4142;  // any id that is no item's
+				im::SetKeyOwner(ImGuiMCP::ImGuiKey_GamepadFaceRight, kBackOwner, 0);
 			}
 			// R on the keyboard, or X on the controller (PlayStation Square) as in RaceMenu, presses Done
 			const bool padDone = Settings::Get().gamepadDone && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceLeft, false);
@@ -2289,7 +2464,8 @@ namespace RMA::UI
 				} else {
 					Bridge::Done(s.name);
 				}
-			} else if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_Z, false)) {
+			} else if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_Z, false) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadR3, false)) {
+				// Z, or the right stick's click (R3): the close-up on the face and back, as RaceMenu's zoom
 				Bridge::Zoom(!a_model.zoomFace);
 			} else if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_L, false)) {
 				Bridge::SetLight(!a_model.lightOn);
@@ -2410,6 +2586,7 @@ namespace RMA::UI
 			RenderEditor(model);
 			RenderSidePanel(model);
 			HandleSceneMouse(model);
+			W::FlushFocusMark();
 			PopStyle();
 		}
 

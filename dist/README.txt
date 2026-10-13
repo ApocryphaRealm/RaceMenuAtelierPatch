@@ -33,9 +33,13 @@ Controller
 As in RaceMenu:
 - Left stick left / right: move between the editor on the left (categories and sliders) and the scene and presets
   panel on the right, once per push.
-- Right stick: turns the character.
-- D-pad: moves over every item of the window, with no area to enter or leave; left / right on a slider steps it, on
-  an option row moves to the previous or next option. A activates, B backs out of a popup.
+- Right stick: turns the character. Right stick click (R3): close-up on the face and back.
+- D-pad, two columns: in the category list up / down choose the category (its content shows beside it) and right
+  enters that content, on the item last highlighted there (or the current race or choice). In the content up / down
+  move between items; on a slider or option row left / right change the value and never leave the row; on any other
+  row left moves left one item at a time, and a further press at the far left returns to the category. B also
+  returns to the category list. No area is ever framed or entered with A; only the highlighted item is marked.
+- A activates (picks a race, presses a button); B closes a popup or the confirmation.
 - L2 / R2 step through the categories.
 - X (PlayStation Square): Done, as R on the keyboard (switchable in Options).
 - The Class and Trait categories come directly after Race.

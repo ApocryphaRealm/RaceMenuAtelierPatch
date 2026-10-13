@@ -6,6 +6,11 @@ namespace RMA::UI::Widgets
 {
 	void Tooltip(const char* a_text);
 
+	// controller highlight: MarkFocus right after an item notes it when it holds the highlight; FlushFocusMark, once
+	// at the end of the frame, draws a frame round that one item (and nothing else is ever framed)
+	void MarkFocus();
+	void FlushFocusMark();
+
 	// square button with a Font Awesome glyph; a_active draws it lit
 	bool IconButton(const char* a_id, const char* a_icon, const char* a_tooltip, bool a_active = false, float a_size = 0.0f);
 
