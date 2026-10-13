@@ -24,6 +24,7 @@ if is_plat("windows") then
     add_cxxflags("cl::/permissive-", "cl::/Zc:preprocessor", "cl::/EHsc", "cl::/utf-8")
     -- keep the build machine's paths out of the shipped DLL
     add_shflags("/PDBALTPATH:%_PDB%", {force = true})
+    add_cxflags({"/d1trimfile:$(projectdir)"}, {force = true, expand = false})
     add_cxxflags("cl::/wd4068", "cl::/wd4201", "cl::/wd4251", "cl::/wd4275", "cl::/wd4267", "cl::/wd4244", "cl::/wd4996", "cl::/wd4100")
 end
 
