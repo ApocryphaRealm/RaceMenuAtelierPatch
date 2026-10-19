@@ -92,6 +92,15 @@ namespace RMA::UI
 			const auto value = Trim(std::string_view(line).substr(eq + 1));
 			if (key == "sName") {
 				name = std::string(value);
+			} else if (key == "uLogLevel") {
+				// log verbosity of RaceMenuAtelier.log: 0 trace, 1 debug, 2 info (default), 3 warn, 4 error, 5 critical, 6 off
+				int level = 2;
+				if (std::from_chars(value.data(), value.data() + value.size(), level).ec == std::errc{} && level >= 0 && level <= 6) {
+					spdlog::set_level(static_cast<spdlog::level::level_enum>(level));
+					logger::info("log level set to {} by {}", level, kThemePath);
+				} else {
+					logger::warn("theme: uLogLevel = '{}' is not 0-6; log level stays at info", value);
+				}
 			} else if (key == "fRounding") {
 				float f = 1.0f;
 				if (std::from_chars(value.data(), value.data() + value.size(), f).ec == std::errc{}) {
