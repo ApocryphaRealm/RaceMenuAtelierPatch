@@ -113,8 +113,15 @@ namespace RMA::DevBenchTool
 			} else if (op == "refresh") {
 				Bridge::RequestRefresh();
 				out = { { "ok", true } };
+			} else if (op == "pad_done") {
+				// the Done confirmation opened the way controller X opens it (applied on the editor's next frame); read
+				// done_confirm_open / done_finish_focused with op=state a frame later
+				UI::PadDone();
+				out = { { "ok", true }, { "note", "opens on the next frame - read op=state" } };
 			} else {
 				out = State();
+				out["done_confirm_open"] = UI::DoneConfirmOpen();
+				out["done_finish_focused"] = UI::DoneFinishFocused();
 				out["category"] = UI::CurrentCategory();
 			}
 			a_write(a_sink, out.dump().c_str());

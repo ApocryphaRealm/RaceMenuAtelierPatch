@@ -3,7 +3,13 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
-## 1.0.1 - 2026-10-13 - working
+## 1.0.1 - 2026-10-13 - working (2026-10-24 change below untested)
+
+2026-10-24 (the owner, 2026-10-23: "after pressing X to press Done, it should autofocus to the Finish button so that I
+can press A and it will press Finish"): **the "Finish character creation?" confirmation opened by controller X puts the
+controller focus on Finish**, so A finishes with no D-pad move. B is still Cancel; keyboard R, Enter and the mouse are
+unchanged (the focus is set only when the confirmation came from the controller). DevBench atelier.control: op=pad_done
+opens the confirmation the way X does; op=state reports done_confirm_open and done_finish_focused.
 
 Asked for by the owner, 2026-10-13, playing with a controller: "I want the trait and class categories to be directly
 after the race category"; "when you press X with controller, it will automatically press the done button, just like

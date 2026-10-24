@@ -195,6 +195,10 @@ namespace RMA::UI
 			std::string headPartPlugin;
 			bool        openHeadParts{ false };
 			bool        openDone{ false };
+			bool        openDoneByPad{ false };     // the confirmation was opened by controller X: Finish takes the focus
+			std::atomic<bool> doneConfirmOpen{ false };      // DevBench: the "Finish character creation?" popup is up
+			std::atomic<bool> doneFinishFocused{ false };    // ... and its Finish button holds the controller focus
+			std::atomic<bool> devbenchPadDone{ false };      // DevBench: open the confirmation as controller X does
 			bool        openResetAll{ false };
 			std::string loadPreset;
 			bool        openLoadPreset{ false };
@@ -1650,12 +1654,19 @@ namespace RMA::UI
 			im::EndPopup();
 		}
 
-		void ConfirmModal(const char* a_id, bool& a_open, const char* a_title, const std::string& a_text, const char* a_confirm, const std::function<void()>& a_onConfirm)
+		// a_focusConfirm (1.0.1, the owner 2026-10-23: "after pressing X to press Done ... it should autofocus to the Finish
+		// button so that I can press A and it will press Finish"): the confirm button takes the controller focus on the frame
+		// the popup appears, so A presses it with no D-pad move. B stays Cancel; the mouse and Enter are unchanged.
+		// a_state (optional): whether the popup is up and whether its confirm button holds the focus, for DevBench.
+		void ConfirmModal(const char* a_id, bool& a_open, const char* a_title, const std::string& a_text, const char* a_confirm, const std::function<void()>& a_onConfirm,
+			bool* a_focusConfirm = nullptr, std::atomic<bool>* a_up = nullptr, std::atomic<bool>* a_confirmFocused = nullptr)
 		{
 			if (a_open) {
 				im::OpenPopup(a_id);
 				a_open = false;
 			}
+			if (a_up) { *a_up = false; }
+			if (a_confirmFocused) { *a_confirmFocused = false; }
 			const auto* io = im::GetIO();
 			im::SetNextWindowPos({ io->DisplaySize.x * 0.5f, io->DisplaySize.y * 0.5f }, ImGuiMCP::ImGuiCond_Appearing, { 0.5f, 0.5f });
 			if (!im::BeginPopupModal(a_id, nullptr, ImGuiMCP::ImGuiWindowFlags_NoTitleBar | ImGuiMCP::ImGuiWindowFlags_AlwaysAutoResize | ImGuiMCP::ImGuiWindowFlags_NoSavedSettings)) {
@@ -1670,7 +1681,18 @@ namespace RMA::UI
 			im::PopTextWrapPos();
 			im::Spacing();
 			im::Spacing();
-			if (W::Button("##confirm", Icon::Check, a_confirm, { u * 9.0f, u * 1.8f }, true) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Enter, false)) {
+			const bool focusNow = a_focusConfirm && *a_focusConfirm;
+			if (focusNow) {
+				im::SetKeyboardFocusHere();   // the next item - the confirm button - takes the controller focus
+				*a_focusConfirm = false;
+			}
+			const bool confirmed = W::Button("##confirm", Icon::Check, a_confirm, { u * 9.0f, u * 1.8f }, true);
+			if (focusNow) {
+				im::SetItemDefaultFocus();    // and is the popup's default if the navigation re-initialises it
+			}
+			if (a_up) { *a_up = true; }
+			if (a_confirmFocused) { *a_confirmFocused = im::IsItemFocused(); }
+			if (confirmed || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Enter, false)) {
 				a_onConfirm();
 				im::CloseCurrentPopup();
 			}
@@ -2119,7 +2141,7 @@ namespace RMA::UI
 			ConfirmModal("##confirmdone", s.openDone, "Finish character creation?",
 				s.name[0] ? std::format("Your character will be named {}. RaceMenu can be opened again later with showracemenu.", s.name) :
 							"RaceMenu can be opened again later with showracemenu.",
-				"Finish", [] { Bridge::Done(s.name); });
+				"Finish", [] { Bridge::Done(s.name); }, &s.openDoneByPad, &s.doneConfirmOpen, &s.doneFinishFocused);
 			ConfirmModal("##confirmreset", s.openResetAll, "Reset every change?",
 				std::format("{} changed sliders, colours and textures return to how they were when RaceMenu opened. Race and sex stay as they are. This can be undone.", s.changedTotal),
 				"Reset", [&a_model] { a_model.ResetAll(); });
@@ -2457,10 +2479,12 @@ namespace RMA::UI
 				im::SetKeyOwner(ImGuiMCP::ImGuiKey_GamepadFaceRight, kBackOwner, 0);
 			}
 			// R on the keyboard, or X on the controller (PlayStation Square) as in RaceMenu, presses Done
-			const bool padDone = Settings::Get().gamepadDone && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceLeft, false);
+			const bool padDone = (Settings::Get().gamepadDone && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceLeft, false)) ||
+			                     s.devbenchPadDone.exchange(false);
 			if (padDone || im::IsKeyPressed(ImGuiMCP::ImGuiKey_R, false)) {
 				if (Settings::Get().confirmDone) {
 					s.openDone = true;
+					s.openDoneByPad = padDone;   // from the controller: Finish takes the focus, so A finishes
 				} else {
 					Bridge::Done(s.name);
 				}
@@ -2567,6 +2591,10 @@ namespace RMA::UI
 		std::scoped_lock lock(model.mutex);
 		return s.categoryRaw;
 	}
+
+	void PadDone() { s.devbenchPadDone = true; }
+	bool DoneConfirmOpen() { return s.doneConfirmOpen.load(); }
+	bool DoneFinishFocused() { return s.doneFinishFocused.load(); }
 
 	namespace
 	{
