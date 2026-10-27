@@ -13,7 +13,8 @@ opens the confirmation the way X does; op=state reports done_confirm_open and do
 
 2026-10-27 (the owner, after trying it: A did not press Finish): **controller A confirms the Finish, Reset and Load
 preset confirmations directly**, not only through the menu framework's navigation focus; A on Cancel (reached with the
-D-pad) still cancels. Each confirmation now logs how it opened, whether the framework was in controller navigation,
+D-pad) still cancels. A counts only as a fresh press after the confirmation has appeared, so the A that pressed Load
+(or Reset) does not also confirm it in the same moment (the owner's round, 06:22: the Load confirmation never showed). Each confirmation now logs how it opened, whether the framework was in controller navigation,
 every A it sees with where the focus was, and how it closed - so a press that never reaches the window shows as absent
 from the log.
 

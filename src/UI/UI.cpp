@@ -1658,12 +1658,15 @@ namespace RMA::UI
 		// button so that I can press A and it will press Finish"): the confirm button takes the controller focus on the frame
 		// the popup appears, so A presses it with no D-pad move. B stays Cancel; the mouse and Enter are unchanged.
 		// a_state (optional): whether the popup is up and whether its confirm button holds the focus, for DevBench.
+		bool s_padAArmed = false;   // ConfirmModal: A has been released since the open confirmation appeared
+
 		void ConfirmModal(const char* a_id, bool& a_open, const char* a_title, const std::string& a_text, const char* a_confirm, const std::function<void()>& a_onConfirm,
 			bool* a_focusConfirm = nullptr, std::atomic<bool>* a_up = nullptr, std::atomic<bool>* a_confirmFocused = nullptr)
 		{
 			if (a_open) {
 				im::OpenPopup(a_id);
 				a_open = false;
+				s_padAArmed = false;   // the A that opened it (or is still held) is not a confirm - a fresh press is
 				logger::info("confirmation {} opened ({}); controller navigation {}", a_id, a_focusConfirm && *a_focusConfirm ? "by controller X - its confirm button takes the focus" : "by R, Enter or the mouse",
 					(im::GetIO()->ConfigFlags & ImGuiMCP::ImGuiConfigFlags_NavEnableGamepad) ? "on" : "OFF (the framework is in keyboard navigation, so no controller button reaches this window)");
 			}
@@ -1702,7 +1705,11 @@ namespace RMA::UI
 			// 1.0.1 (the owner, 2026-10-27: on the controller A did not press Finish): A is read here directly, not only
 			// through ImGui's navigation, so it confirms unless the D-pad has moved the focus onto Cancel (where A cancels
 			// through the navigation as before). Every A this window sees is logged with where the focus was.
-			const bool padA = im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceDown, false);
+			// The owner's round, 2026-10-27 06:22: one A pressed Load preset (through the navigation), opened this
+			// confirmation and was read again here in the same frame, so the confirmation never showed. A counts only once
+			// it has been let go after the confirmation appeared: a fresh press.
+			if (!s_padAArmed && !im::IsKeyDown(ImGuiMCP::ImGuiKey_GamepadFaceDown)) { s_padAArmed = true; }
+			const bool padA = s_padAArmed && im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceDown, false);
 			if (padA) {
 				logger::info("confirmation {}: controller A seen - focus on {}", a_id, confirmFocused ? "the confirm button" : (cancelFocused ? "Cancel" : "neither button"));
 			}
