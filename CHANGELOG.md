@@ -11,6 +11,12 @@ controller focus on Finish**, so A finishes with no D-pad move. B is still Cance
 unchanged (the focus is set only when the confirmation came from the controller). DevBench atelier.control: op=pad_done
 opens the confirmation the way X does; op=state reports done_confirm_open and done_finish_focused.
 
+2026-10-27 (the owner, after trying it: A did not press Finish): **controller A confirms the Finish, Reset and Load
+preset confirmations directly**, not only through the menu framework's navigation focus; A on Cancel (reached with the
+D-pad) still cancels. Each confirmation now logs how it opened, whether the framework was in controller navigation,
+every A it sees with where the focus was, and how it closed - so a press that never reaches the window shows as absent
+from the log.
+
 Asked for by the owner, 2026-10-13, playing with a controller: "I want the trait and class categories to be directly
 after the race category"; "when you press X with controller, it will automatically press the done button, just like
 the original race menu"; and, after trying the first build (L1/R1 window switching with a gold outline), "I want the

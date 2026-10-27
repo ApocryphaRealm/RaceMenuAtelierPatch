@@ -1664,6 +1664,8 @@ namespace RMA::UI
 			if (a_open) {
 				im::OpenPopup(a_id);
 				a_open = false;
+				logger::info("confirmation {} opened ({}); controller navigation {}", a_id, a_focusConfirm && *a_focusConfirm ? "by controller X - its confirm button takes the focus" : "by R, Enter or the mouse",
+					(im::GetIO()->ConfigFlags & ImGuiMCP::ImGuiConfigFlags_NavEnableGamepad) ? "on" : "OFF (the framework is in keyboard navigation, so no controller button reaches this window)");
 			}
 			if (a_up) { *a_up = false; }
 			if (a_confirmFocused) { *a_confirmFocused = false; }
@@ -1690,15 +1692,27 @@ namespace RMA::UI
 			if (focusNow) {
 				im::SetItemDefaultFocus();    // and is the popup's default if the navigation re-initialises it
 			}
+			const bool confirmFocused = im::IsItemFocused();
 			if (a_up) { *a_up = true; }
-			if (a_confirmFocused) { *a_confirmFocused = im::IsItemFocused(); }
-			if (confirmed || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Enter, false)) {
+			if (a_confirmFocused) { *a_confirmFocused = confirmFocused; }
+			im::SameLine();
+			const bool cancelled = W::Button("##cancel", Icon::Close, "Cancel", { u * 9.0f, u * 1.8f }) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false) ||
+			                       im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceRight, false);
+			const bool cancelFocused = im::IsItemFocused();
+			// 1.0.1 (the owner, 2026-10-27: on the controller A did not press Finish): A is read here directly, not only
+			// through ImGui's navigation, so it confirms unless the D-pad has moved the focus onto Cancel (where A cancels
+			// through the navigation as before). Every A this window sees is logged with where the focus was.
+			const bool padA = im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceDown, false);
+			if (padA) {
+				logger::info("confirmation {}: controller A seen - focus on {}", a_id, confirmFocused ? "the confirm button" : (cancelFocused ? "Cancel" : "neither button"));
+			}
+			const bool enter = im::IsKeyPressed(ImGuiMCP::ImGuiKey_Enter, false);
+			if (!cancelled && (confirmed || enter || (padA && !cancelFocused))) {
+				logger::info("confirmation {}: confirmed by {}", a_id, padA && !cancelFocused ? "controller A" : (enter ? "Enter" : "its button (click or navigation)"));
 				a_onConfirm();
 				im::CloseCurrentPopup();
-			}
-			im::SameLine();
-			if (W::Button("##cancel", Icon::Close, "Cancel", { u * 9.0f, u * 1.8f }) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false) ||
-				im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceRight, false)) {
+			} else if (cancelled) {
+				logger::info("confirmation {}: cancelled", a_id);
 				im::CloseCurrentPopup();
 			}
 			im::EndPopup();
