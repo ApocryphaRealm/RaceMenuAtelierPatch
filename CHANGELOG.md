@@ -31,6 +31,7 @@ leave the menu once I get to the end of it", with a guard so a held D-pad left g
 and "I want right stick click to toggle zoom in race menu."
 
 ### Changed
+- README and README.txt describe the public release on Nexus Mods (approved by Nexus Mods staff on 2026-10-27) and link the source, in place of the old private, not posted note.
 - Category order: the Class and Trait categories (any category holding another mod's choices) now come directly after
   Race in the category rail, and the controller triggers step through them in that order. The rest keep RaceMenu's
   order, and each category keeps its colour.

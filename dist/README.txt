@@ -1,8 +1,9 @@
 RaceMenu Atelier
 Version 1.0.1 (upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme)
 
-PRIVATE: not posted anywhere. A private continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, kept
-because the upstream mod was removed from Nexus. This package is the whole mod: it replaces RaceMenu Atelier.
+A continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, GPL-3.0, released on Nexus Mods with the
+approval of Nexus Mods staff. This package is the whole mod: it replaces RaceMenu Atelier.
+Source: https://github.com/ApocryphaRealm/RaceMenuAtelierPatch
 
 Makes RaceMenu Atelier work with Apprentice - A Class Overhaul. Classes and traits get their own tiles under the CLASS
 and TRAIT categories instead of sitting in the race list, and choosing one records it with Apprentice exactly as

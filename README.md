@@ -1,8 +1,8 @@
 # RaceMenu Atelier
 
-A private continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, with the Apprentice patch and the
-Norden Black theme. Kept as one of our own mods because the upstream mod was removed from Nexus (the owner,
-2026-10-13); it is not posted anywhere.
+A continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, with the Apprentice patch, theme support,
+a full controller layout and the Norden Black theme. Released on Nexus Mods as ApocryphaRealm's own page (2026-10-27),
+with Nexus Mods staff (Trust & Safety) having approved the fork and upload, under the same GPL-3.0 licence.
 
 - Upstream: RaceMenu Atelier by RustyOldSword (formerly emberchain), GPL-3.0 -
   [rustyoldsword/RaceMenuAtelier](https://github.com/rustyoldsword/RaceMenuAtelier) (current, 1.0.3) and
@@ -10,8 +10,8 @@ Norden Black theme. Kept as one of our own mods because the upstream mod was rem
   Nexus as mod 193865 until Nexus staff removed it; it is also on dwemermods.com (mod 4840).
 - `main`: Atelier 1.0.0 (`8db73c5`) plus the Apprentice patch below, shipped with the Norden Black theme
   (`themes/norden-black.ini`, installed as `SKSE\Plugins\RaceMenuAtelier\theme.ini`). The last build proven in game
-  is version 1.0.0 (DLL SHA-256 `2409DA145E3B601AE5D46BE50A624CB36AEA491C75C98E00645B8226AB1F3A6E`, commit
-  `7a9c681`); 1.0.1 adds the controller changes in `CHANGELOG.md` and is not yet tested in game.
+  was version 1.0.0 (DLL SHA-256 `2409DA145E3B601AE5D46BE50A624CB36AEA491C75C98E00645B8226AB1F3A6E`, commit
+  `7a9c681`); 1.0.1, the first public release, adds the controller changes in `CHANGELOG.md`.
 - Branch `merge-upstream-1.0.1` holds the merge of upstream 1.0.1 and a build-path flag; not yet tested in game.
 
 The patch makes Atelier work with [Apprentice - A Class Overhaul](https://www.nexusmods.com/skyrimspecialedition/mods/169288)
