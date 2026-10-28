@@ -67,6 +67,7 @@ namespace RMA::DevBenchTool
 			return {
 				{ "ok", true },
 				{ "mode", static_cast<int>(model.mode) },
+				{ "yielding", model.yieldCount },  // menus on top that hold the input (the console, a message box)
 				{ "hasData", model.hasData },
 				{ "entries", model.entries.size() },
 				{ "races", races },

@@ -600,13 +600,28 @@ namespace RMA::Bridge
 				const auto session = g_session.fetch_add(1, std::memory_order_acq_rel) + 1;
 				g_watch = {};
 				g_yielding.clear();
+				// 1.1.0 (Nexus report: "showracemenu" typed in the console). A console or message box that was already
+				// open when RaceMenu opened never sends an opening event while RaceMenu is current, so it was never
+				// counted: the editor opened as the menu framework's blocking window and took every key, and the console
+				// could not be closed with ~ or Esc until F4 closed the editor. Count them now; the editor then waits,
+				// the console keeps the keys, and the editor appears the moment the console closes.
+				if (const auto ui = RE::UI::GetSingleton()) {
+					for (const auto& menu : { RE::Console::MENU_NAME, RE::MessageBoxMenu::MENU_NAME }) {
+						if (ui->IsMenuOpen(menu)) {
+							g_yielding.insert(std::string(menu));
+							logger::info("{} was already open when RaceMenu opened, yielding input until it closes", menu);
+						}
+					}
+				}
+				const int yield = static_cast<int>(g_yielding.size());
 				{
 					std::scoped_lock lock(g_refreshLock);
 					g_refreshAt.clear();
 				}
-				WithModel([](Model& m) {
+				WithModel([yield](Model& m) {
 					m.ResetSession();
 					m.mode = Mode::Editor;
+					m.yieldCount = yield;
 				});
 				// hide RaceMenu's own panels at once, the data follows over a few frames
 				SKSE::GetTaskInterface()->AddUITask([session] {
