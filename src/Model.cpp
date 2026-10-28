@@ -2,6 +2,10 @@
 
 #include "Bridge.h"
 
+#include <Windows.h>
+
+#include <cstring>
+
 namespace RMA
 {
 	namespace
@@ -319,6 +323,124 @@ namespace RMA
 		return std::chrono::duration<double>(clock::now() - start).count();
 	}
 
+	bool Text::IsUtf8(std::string_view a_text)
+	{
+		std::size_t i = 0;
+		while (i < a_text.size()) {
+			const auto c = static_cast<unsigned char>(a_text[i]);
+			std::size_t len = 0;
+			std::uint32_t cp = 0;
+			if (c < 0x80) {
+				++i;
+				continue;
+			} else if ((c & 0xE0) == 0xC0) {
+				len = 2;
+				cp = c & 0x1F;
+			} else if ((c & 0xF0) == 0xE0) {
+				len = 3;
+				cp = c & 0x0F;
+			} else if ((c & 0xF8) == 0xF0) {
+				len = 4;
+				cp = c & 0x07;
+			} else {
+				return false;
+			}
+			if (i + len > a_text.size()) {
+				return false;
+			}
+			for (std::size_t k = 1; k < len; ++k) {
+				const auto t = static_cast<unsigned char>(a_text[i + k]);
+				if ((t & 0xC0) != 0x80) {
+					return false;
+				}
+				cp = (cp << 6) | (t & 0x3F);
+			}
+			// overlong forms, surrogates and values past U+10FFFF are not UTF-8
+			if ((len == 2 && cp < 0x80) || (len == 3 && cp < 0x800) || (len == 4 && cp < 0x10000) || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
+				return false;
+			}
+			i += len;
+		}
+		return true;
+	}
+
+	std::string Text::WideToUtf8(std::wstring_view a_text)
+	{
+		if (a_text.empty()) {
+			return {};
+		}
+		const int n = ::WideCharToMultiByte(CP_UTF8, 0, a_text.data(), static_cast<int>(a_text.size()), nullptr, 0, nullptr, nullptr);
+		if (n <= 0) {
+			return {};
+		}
+		std::string out(static_cast<std::size_t>(n), '\0');
+		::WideCharToMultiByte(CP_UTF8, 0, a_text.data(), static_cast<int>(a_text.size()), out.data(), n, nullptr, nullptr);
+		return out;
+	}
+
+	std::string Text::GameLanguage()
+	{
+		std::string lang = "english";
+		if (auto* ini = RE::INISettingCollection::GetSingleton()) {
+			if (auto* setting = ini->GetSetting("sLanguage:General"); setting && setting->GetString() && setting->GetString()[0]) {
+				lang = setting->GetString();
+			}
+		}
+		return Lower(lang);
+	}
+
+	std::string Text::ToUtf8(std::string_view a_text)
+	{
+		if (IsUtf8(a_text)) {
+			return std::string(a_text);
+		}
+		// the code page of the game's language; the Western one for the rest
+		static const UINT codePage = [] {
+			const auto lang = GameLanguage();
+			const UINT cp = lang == "russian" ? 1251u :
+			                (lang == "polish" || lang == "czech") ? 1250u :
+			                lang == "japanese" ? 932u :
+			                lang == "chinese" ? 936u :
+			                lang == "korean" ? 949u :
+			                                    1252u;
+			logger::info("text that is not UTF-8 is read in code page {} (game language '{}')", cp, lang);
+			return cp;
+		}();
+		const int n = ::MultiByteToWideChar(codePage, 0, a_text.data(), static_cast<int>(a_text.size()), nullptr, 0);
+		if (n <= 0) {
+			static bool logged = false;
+			if (!logged) {
+				logged = true;
+				logger::warn("a string is neither UTF-8 nor code page {}; it is shown as it came", codePage);
+			}
+			return std::string(a_text);
+		}
+		std::wstring wide(static_cast<std::size_t>(n), L'\0');
+		::MultiByteToWideChar(codePage, 0, a_text.data(), static_cast<int>(a_text.size()), wide.data(), n);
+		static bool logged = false;
+		if (!logged) {
+			logged = true;
+			logger::debug("read a string in code page {} rather than UTF-8 ({} bytes)", codePage, a_text.size());
+		}
+		return WideToUtf8(wide);
+	}
+
+	void Text::CopyUtf8(char* a_dest, std::size_t a_size, std::string_view a_text)
+	{
+		if (!a_dest || a_size == 0) {
+			return;
+		}
+		std::size_t n = std::min(a_text.size(), a_size - 1);
+		// step back over a cut character's continuation bytes and its lead byte
+		if (n < a_text.size()) {
+			while (n > 0 && (static_cast<unsigned char>(a_text[n]) & 0xC0) == 0x80) {
+				--n;
+			}
+		}
+		std::memcpy(a_dest, a_text.data(), n);
+		a_dest[n] = '\0';
+	}
+
 	// ------------------------------------------------------------------
 	// entries
 
@@ -430,6 +552,8 @@ namespace RMA
 		past.clear();
 		future.clear();
 		presetFiles.clear();
+		presetLabels.clear();
+		presetUnloadable.clear();
 		presetsLoaded = false;
 		presetInfo.clear();
 		partNames.clear();

@@ -1,5 +1,6 @@
 RaceMenu Atelier
-Version 1.0.1 (upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme)
+Version 1.0.1
+Based on upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme.
 
 A continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, GPL-3.0, released on Nexus Mods with the
 approval of Nexus Mods staff. This package is the whole mod: it replaces RaceMenu Atelier.

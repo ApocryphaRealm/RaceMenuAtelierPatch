@@ -3,6 +3,15 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
+## 1.0.2 - 2026-10-27 - untested
+
+### Added
+- DevBench atelier.control: op=glyphs (framework, font, characters seen and missing, their glyph sets, the notice, one probe per script), op=set_text field=name|preset|search|bodyslide text=<UTF-8> and op=typed (put text in a field as if typed, read it back), op=presets (the list as shown, with each file's loadability), op=save_preset name=<UTF-8>.
+- A notice above the categories when the menu font cannot draw letters the editor shows. The editor draws in the menu framework's font: SKSE Menu Framework 3 ships with its Cyrillic, Polish, Chinese, Japanese and Korean letters switched off (Character Glyphs / EnableCyrillic etc. in SKSEMenuFramework.ini), and Dear ImGui draws a question mark for every letter its font lacks. Twice a second the editor checks what it shows against the font; a letter still missing after two seconds shows which glyph set it belongs to and where to switch it on (Options > Open Settings > Character Glyphs, or the INI key and a restart). Apocrypha Menu Framework adds missing letters by itself, so there the notice only appears if a letter stays missing. The notice is in all eleven languages and falls back to English when the font cannot draw the player's own language. Each missing glyph set is written to RaceMenuAtelier.log once.
+
+### Fixed
+- Text in another alphabet no longer turns into question marks where the editor itself caused it (letoposlednee on Nexus, 2026-10-27: Cyrillic letters showed as ?????). Preset file names were read through the Windows ANSI code page, so a letter it lacks became a question mark and the rest reached the menu as bytes it cannot read; each preset is now listed by its real (UTF-8) name, a name RaceMenu saved from typed text shows as it was typed, and a file whose name RaceMenu cannot open on this Windows is greyed out with its Load button off instead of failing. The preset inspector now reads such files too. Names the game hands over in its own code page (the player and race name, anything read from RaceMenu) are turned into UTF-8 before they are drawn, and a typed name is never cut in the middle of a letter.
+
 ## 1.0.1 - 2026-10-13 - working (2026-10-24 change below untested)
 
 2026-10-24 (the owner, 2026-10-23: "after pressing X to press Done, it should autofocus to the Finish button so that I

@@ -16,4 +16,9 @@ namespace RMA::UI
 	void          PadDone();
 	[[nodiscard]] bool DoneConfirmOpen();
 	[[nodiscard]] bool DoneFinishFocused();
+
+	// DevBench (1.0.2): put text into a field as if typed - "name", "preset", "search" or "bodyslide" - on the next frame,
+	// and read a field back; lock-safe
+	bool          SetText(const std::string& a_field, const std::string& a_text);
+	[[nodiscard]] std::string TypedText(const std::string& a_field);
 }

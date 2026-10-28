@@ -2,6 +2,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Windows.h>
+
 namespace RMA::Bridge
 {
 	namespace
@@ -109,7 +111,7 @@ namespace RMA::Bridge
 		std::string GetStr(const RE::GFxValue& a_obj, const char* a_name)
 		{
 			RE::GFxValue v;
-			return a_obj.GetMember(a_name, &v) && v.IsString() ? std::string(v.GetString()) : std::string{};
+			return a_obj.GetMember(a_name, &v) && v.IsString() && v.GetString() ? Text::ToUtf8(v.GetString()) : std::string{};
 		}
 
 		std::vector<std::string> GetStrArray(const RE::GFxValue& a_obj, const char* a_name)
@@ -119,8 +121,8 @@ namespace RMA::Bridge
 			if (a_obj.GetMember(a_name, &v) && v.IsArray()) {
 				for (std::uint32_t i = 0; i < v.GetArraySize(); ++i) {
 					RE::GFxValue element;
-					if (v.GetElement(i, &element) && element.IsString()) {
-						out.emplace_back(element.GetString());
+					if (v.GetElement(i, &element) && element.IsString() && element.GetString()) {
+						out.emplace_back(Text::ToUtf8(element.GetString()));
 					}
 				}
 			}
@@ -278,11 +280,11 @@ namespace RMA::Bridge
 			PlayerInfo info;
 			if (const auto player = RE::PlayerCharacter::GetSingleton()) {
 				if (const auto name = player->GetName(); name && *name) {
-					info.name = name;
+					info.name = Text::ToUtf8(name);
 				}
 				if (const auto race = player->GetRace()) {
 					if (const auto raceName = race->GetFullName(); raceName && *raceName) {
-						info.race = raceName;
+						info.race = Text::ToUtf8(raceName);
 					}
 				}
 				if (const auto base = player->GetActorBase()) {
@@ -654,7 +656,12 @@ namespace RMA::Bridge
 			if (a_name.empty() || a_name.size() > 240 || a_name.find('\0') != std::string::npos) {
 				return false;
 			}
-			const std::filesystem::path path(a_name);
+			// 1.0.2: the name is UTF-8; read it as such (a std::string path is read in the ANSI code page)
+			const auto wide = SKSE::stl::utf8_to_utf16(a_name);
+			if (!wide) {
+				return false;
+			}
+			const std::filesystem::path path(*wide);
 			if (path.is_absolute() || path.has_root_name() || path.has_root_directory()) {
 				return false;
 			}
@@ -663,7 +670,7 @@ namespace RMA::Bridge
 					return false;
 				}
 			}
-			const auto ext = Text::Lower(path.extension().string());
+			const auto ext = Text::Lower(Text::WideToUtf8(path.extension().native()));
 			return ext == ".jslot" || ext == ".slot";
 		}
 
@@ -707,23 +714,63 @@ namespace RMA::Bridge
 			return a_result.IsBool() ? a_result.GetBool() : (a_result.IsNumber() && a_result.GetNumber() != 0);
 		}
 
-		std::vector<std::string> ListPresetFiles()
+		// 1.0.2 (letoposlednee: Cyrillic drew as "?????"). The list used generic_string(), which turns the file name
+		// into the ANSI code page: a letter that code page lacks became '?' and the rest came out as bytes ImGui cannot
+		// read as UTF-8. Each file is now listed by its UTF-8 name. RaceMenu (skee) opens presets through the ANSI file
+		// functions, so the name handed to it is the ANSI one - kept in g_presetGamePaths; a name that has no ANSI form
+		// on this Windows cannot be opened by RaceMenu at all and is shown as such. RaceMenu saves a typed name's UTF-8
+		// bytes as the ANSI file name, so an ANSI name that is itself valid UTF-8 is shown as that UTF-8 text - the name
+		// as it was typed, in RaceMenu's own list and here alike.
+		struct PresetListing
 		{
-			std::vector<std::string>    files;
-			const std::filesystem::path root(kPresetDir);
+			std::vector<std::string>                     files;
+			std::unordered_map<std::string, std::string> labels;
+			std::unordered_set<std::string>              unloadable;
+			std::unordered_map<std::string, std::string> gamePaths;
+		};
+
+		std::mutex                                   g_presetPathLock;
+		std::unordered_map<std::string, std::string> g_presetGamePaths;  // UTF-8 path -> the ANSI path RaceMenu opens
+
+		PresetListing ListPresetFiles()
+		{
+			PresetListing               out;
+			const std::filesystem::path root(L"Data\\SKSE\\Plugins\\CharGen\\Presets\\");
 			std::error_code             ec;
 			std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied, ec);
 			for (const std::filesystem::recursive_directory_iterator end; !ec && it != end; it.increment(ec)) {
 				if (ec || !it->is_regular_file(ec)) {
 					continue;
 				}
-				auto name = it->path().lexically_relative(root).generic_string();
-				if (IsSafePresetPath(name)) {
-					files.emplace_back(std::move(name));
+				const std::wstring wide = it->path().lexically_relative(root).generic_wstring();
+				auto               name = Text::WideToUtf8(wide);
+				if (name.empty() || !IsSafePresetPath(name)) {
+					continue;
 				}
+				BOOL        usedDefault = FALSE;
+				std::string ansi;
+				if (const int n = ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wide.data(), static_cast<int>(wide.size()), nullptr, 0, nullptr, &usedDefault); n > 0 && !usedDefault) {
+					ansi.resize(static_cast<std::size_t>(n));
+					::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wide.data(), static_cast<int>(wide.size()), ansi.data(), n, nullptr, &usedDefault);
+				}
+				if (ansi.empty() || usedDefault) {
+					logger::info("preset '{}' has letters outside this Windows' code page; RaceMenu cannot open it", name);
+					out.unloadable.insert(name);
+				} else {
+					if (ansi != name && Text::IsUtf8(ansi)) {
+						out.labels[name] = ansi;  // saved by RaceMenu from a typed name
+					}
+					out.gamePaths[name] = std::move(ansi);
+				}
+				out.files.emplace_back(std::move(name));
 			}
-			std::ranges::sort(files, [](const std::string& a, const std::string& b) { return Text::Lower(a) < Text::Lower(b); });
-			return files;
+			const auto shown = [&](const std::string& a_file) {
+				const auto label = out.labels.find(a_file);
+				return Text::Lower(label != out.labels.end() ? label->second : a_file);
+			};
+			std::ranges::sort(out.files, [&](const std::string& a, const std::string& b) { return shown(a) < shown(b); });
+			logger::debug("listed {} presets ({} shown by their typed name, {} RaceMenu cannot open)", out.files.size(), out.labels.size(), out.unloadable.size());
+			return out;
 		}
 	}
 
@@ -997,9 +1044,15 @@ namespace RMA::Bridge
 	void ListPresets()
 	{
 		QueueGame([] {
-			auto files = ListPresetFiles();
+			auto listing = ListPresetFiles();
+			{
+				std::scoped_lock lock(g_presetPathLock);
+				g_presetGamePaths = std::move(listing.gamePaths);
+			}
 			WithModel([&](Model& m) {
-				m.presetFiles = std::move(files);
+				m.presetFiles = std::move(listing.files);
+				m.presetLabels = std::move(listing.labels);
+				m.presetUnloadable = std::move(listing.unloadable);
 				m.presetsLoaded = true;
 			});
 		});
@@ -1038,13 +1091,26 @@ namespace RMA::Bridge
 			Status("Invalid preset path");
 			return;
 		}
+		// 1.0.2: RaceMenu opens the ANSI form of the name (see ListPresetFiles)
+		std::string gamePath;
+		{
+			std::scoped_lock lock(g_presetPathLock);
+			if (const auto it = g_presetGamePaths.find(a_relativePath); it != g_presetGamePaths.end()) {
+				gamePath = it->second;
+			}
+		}
+		if (gamePath.empty()) {
+			logger::info("LoadPreset({}): no ANSI file name on this Windows, RaceMenu cannot open it", a_relativePath);
+			Status("Could not load " + a_relativePath);  // no new text to translate: the list already greys the row out
+			return;
+		}
 		const auto session = Current();
-		QueueUI([a_relativePath, session] {
+		QueueUI([a_relativePath, gamePath, session] {
 			auto movie = Movie();
 			if (!movie) {
 				return;
 			}
-			const auto   path = std::string(kPresetDir) + a_relativePath;
+			const auto   path = std::string(kPresetDir) + gamePath;
 			const bool   jslot = Text::Lower(path).ends_with(".jslot");
 			RE::GFxValue dataOut;
 			movie->CreateObject(&dataOut);

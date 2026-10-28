@@ -198,7 +198,9 @@ namespace RMA
 		bool lightOn{ true };
 
 		// replies from the Bridge
-		std::vector<std::string>                           presetFiles;
+		std::vector<std::string>                           presetFiles;  // UTF-8 paths under CharGen\Presets (1.0.2)
+		std::unordered_map<std::string, std::string>       presetLabels;  // path -> the name shown, where it differs (1.0.2)
+		std::unordered_set<std::string>                    presetUnloadable;  // names RaceMenu cannot open on this Windows (1.0.2)
 		bool                                               presetsLoaded{ false };
 		std::unordered_map<std::string, PresetInfo>        presetInfo;
 		std::unordered_map<double, std::string>            partNames;  // sliderID -> head part name
@@ -250,5 +252,17 @@ namespace RMA
 		std::string Translate(const std::string& a_text);
 		std::string FileStem(std::string_view a_path);
 		double      Now();
+
+		// 1.0.2 (letoposlednee, Nexus, 2026-10-27: Cyrillic drew as "?????"). ImGui reads every string as UTF-8, and a byte
+		// sequence that is not UTF-8 draws as '?'. IsUtf8 checks; ToUtf8 keeps valid UTF-8 as it is and reads anything
+		// else in the code page of the game's language (sLanguage: Russian 1251, Polish/Czech 1250, ...), so a name the
+		// game hands over in its code page still shows its letters.
+		bool        IsUtf8(std::string_view a_text);
+		std::string ToUtf8(std::string_view a_text);
+		std::string WideToUtf8(std::wstring_view a_text);
+		// the game's sLanguage, lower case ("english" when unset)
+		std::string GameLanguage();
+		// copy into a fixed char buffer without cutting a UTF-8 character in half
+		void        CopyUtf8(char* a_dest, std::size_t a_size, std::string_view a_text);
 	}
 }

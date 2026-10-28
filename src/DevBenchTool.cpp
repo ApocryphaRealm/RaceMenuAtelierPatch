@@ -3,6 +3,7 @@
 #include "Bridge.h"
 #include "DevBench/DevBenchAPI.h"
 #include "Model.h"
+#include "UI/Glyphs.h"
 #include "UI/UI.h"
 
 #include <nlohmann/json.hpp>
@@ -76,6 +77,20 @@ namespace RMA::DevBenchTool
 			};
 		}
 
+		// 1.0.2: the preset list as the editor shows it - each file's UTF-8 path, the name shown where it differs (a
+		// name RaceMenu saved from typed text), and whether RaceMenu can open it on this Windows
+		json Presets()
+		{
+			auto&            model = Model::Get();
+			std::scoped_lock lock(model.mutex);
+			json             out = json::array();
+			for (const auto& f : model.presetFiles) {
+				const auto label = model.presetLabels.find(f);
+				out.push_back({ { "file", f }, { "shown", label != model.presetLabels.end() ? label->second : f }, { "loadable", !model.presetUnloadable.contains(f) } });
+			}
+			return { { "ok", true }, { "loaded", model.presetsLoaded }, { "presets", std::move(out) } };
+		}
+
 		json Find(const std::string& a_name, Control a_control)
 		{
 			auto&            model = Model::Get();
@@ -113,6 +128,31 @@ namespace RMA::DevBenchTool
 			} else if (op == "refresh") {
 				Bridge::RequestRefresh();
 				out = { { "ok", true } };
+			} else if (op == "glyphs") {
+				// 1.0.2: letters the menu font cannot draw, from the editor's last check (twice a second while it is open)
+				out = json::parse(UI::Glyphs::ReportJson(), nullptr, false);
+				if (out.is_discarded()) {
+					out = { { "ok", false }, { "error", "no report" } };
+				}
+			} else if (op == "set_text") {
+				// 1.0.2: field=name|preset|search|bodyslide text=<UTF-8> - put in on the next frame, as if typed
+				const std::string field = args.value("field", "");
+				const std::string text = args.value("text", "");
+				out = { { "ok", UI::SetText(field, text) }, { "field", field }, { "note", "applied on the next frame - read op=typed" } };
+			} else if (op == "typed") {
+				const std::string field = args.value("field", "name");
+				out = { { "ok", true }, { "field", field }, { "text", UI::TypedText(field) } };
+			} else if (op == "presets") {
+				Bridge::ListPresets();
+				out = Presets();
+				out["note"] = "the list is re-read now; call op=presets again for the fresh one";
+			} else if (op == "save_preset") {
+				// 1.0.2: save the current character as a preset named name=<UTF-8>, as the Save button does
+				const bool valid = Bridge::IsSafePresetName(name);
+				if (valid) {
+					Bridge::SavePreset(name);
+				}
+				out = { { "ok", valid }, { "name", name } };
 			} else if (op == "pad_done") {
 				// the Done confirmation opened the way controller X opens it (applied on the editor's next frame); read
 				// done_confirm_open / done_finish_focused with op=state a frame later
@@ -147,8 +187,12 @@ namespace RMA::DevBenchTool
 			"other mods add (Apprentice's classes and traits) with the current pick, the bottom bar's picked names; "
 			"op=choose name=<label or key> - pick a choice through the menu's own item-press handler; op=race name=<race> "
 			"- change race as the race tiles do; op=category name=<label or raw, empty = all> - the editor's category; "
-			"op=refresh - re-read RaceMenu.\","
-			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}}},"
+			"op=refresh - re-read RaceMenu; op=glyphs - letters the menu font cannot draw (framework, missing characters and "
+			"glyph sets, the notice, one probe per script); op=set_text field=name|preset|search|bodyslide text=<UTF-8> - put "
+			"text in a field as if typed; op=typed field=<field> - read it back; op=presets - the preset list as shown; "
+			"op=save_preset name=<UTF-8> - save the character as a preset.\","
+			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
+			"\"field\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"}}},"
 			"\"readOnly\":false"
 			"}";
 		if (devBench->RegisterTool("atelier.control", descriptor, &Tool, nullptr)) {

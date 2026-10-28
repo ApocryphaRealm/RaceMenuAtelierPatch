@@ -4,6 +4,7 @@
 #include "Model.h"
 #include "Preview.h"
 #include "Settings.h"
+#include "UI/Glyphs.h"
 #include "UI/Theme.h"
 #include "UI/Widgets.h"
 
@@ -199,6 +200,10 @@ namespace RMA::UI
 			std::atomic<bool> doneConfirmOpen{ false };      // DevBench: the "Finish character creation?" popup is up
 			std::atomic<bool> doneFinishFocused{ false };    // ... and its Finish button holds the controller focus
 			std::atomic<bool> devbenchPadDone{ false };      // DevBench: open the confirmation as controller X does
+			// DevBench (1.0.2, op=set_text): text for a field, put in on the next frame (written under the model lock)
+			std::string devbenchTextField;
+			std::string devbenchText;
+			bool        devbenchTextPending{ false };
 			bool        openResetAll{ false };
 			std::string loadPreset;
 			bool        openLoadPreset{ false };
@@ -542,7 +547,7 @@ namespace RMA::UI
 			}
 			s.nameSex = a_model.player.sex;
 			if (name != s.name) {
-				strncpy_s(s.name, name.c_str(), _TRUNCATE);
+				Text::CopyUtf8(s.name, sizeof(s.name), name);
 			}
 		}
 
@@ -2125,6 +2130,43 @@ namespace RMA::UI
 			}
 		}
 
+		// 1.0.2: the text the editor shows, checked against the menu font twice a second (UI/Glyphs.h)
+		void GlyphCheck(const Model& a_model)
+		{
+			if (Glyphs::Due()) {
+				for (const auto& c : a_model.categories) {
+					Glyphs::Note(c.label);
+				}
+				for (const auto& e : a_model.entries) {
+					Glyphs::Note(e.label);
+					Glyphs::Note(e.text);
+					Glyphs::Note(e.description);
+				}
+				for (const auto& p : a_model.picked) {
+					Glyphs::Note(p);
+				}
+				for (const auto& f : a_model.presetFiles) {
+					Glyphs::Note(f);
+				}
+				for (const auto& [file, label] : a_model.presetLabels) {
+					Glyphs::Note(label);
+				}
+				for (const auto& [id, name] : a_model.partNames) {
+					Glyphs::Note(name);
+				}
+				for (const auto& h : a_model.headParts) {
+					Glyphs::Note(h.label);
+				}
+				Glyphs::Note(a_model.player.name);
+				Glyphs::Note(a_model.player.race);
+				Glyphs::Note(a_model.status);
+				for (const char* typed : { s.name, s.presetName, s.search, s.textureSearch, s.headPartSearch, s.bodySlideName }) {
+					Glyphs::Note(typed);
+				}
+			}
+			Glyphs::Check();
+		}
+
 		void RenderEditor(Model& a_model)
 		{
 			const auto* io = im::GetIO();
@@ -2149,6 +2191,14 @@ namespace RMA::UI
 			im::Dummy({ 1.0f, u * 0.15f });
 			RenderToolbar(a_model);
 			im::Dummy({ 1.0f, u * 0.1f });
+			GlyphCheck(a_model);
+			if (const auto& notice = Glyphs::Notice(); !notice.empty()) {
+				// 1.0.2: letters the menu font cannot draw (they show as '?') - which glyph set, and where to switch it on
+				im::PushTextWrapPos(0.0f);
+				im::TextColored(ToVec4(Color::GoldBright), "%s", notice.c_str());
+				im::PopTextWrapPos();
+				im::Dummy({ 1.0f, u * 0.1f });
+			}
 
 			const float footerH = im::GetFrameHeight() + im::GetStyle()->ItemSpacing.y;
 			const auto  avail = im::GetContentRegionAvail();
@@ -2258,9 +2308,12 @@ namespace RMA::UI
 				auto*       list = im::GetWindowDrawList();
 				const auto  pos = im::GetCursorScreenPos();
 				const float width = im::GetContentRegionAvail().x;
-				const auto  slash = file.find_last_of('/');
-				const auto  folder = slash == std::string::npos ? std::string{} : file.substr(0, slash + 1);
-				const auto  stem = Text::FileStem(file);
+				const auto  labelIt = a_model.presetLabels.find(file);
+				const auto& shown = labelIt != a_model.presetLabels.end() ? labelIt->second : file;  // 1.0.2: the typed name
+				const auto  shownSlash = shown.find_last_of('/');
+				const auto  folder = shownSlash == std::string::npos ? std::string{} : shown.substr(0, shownSlash + 1);
+				const auto  stem = Text::FileStem(shown);
+				const bool  unloadable = a_model.presetUnloadable.contains(file);
 				const bool  hovered = im::IsMouseHoveringRect(pos, pos + ImVec2{ width, b });
 				if (hovered) {
 					dl::AddRectFilled(list, pos, pos + ImVec2{ width, b }, Color::RowHover, Round(u * 0.25f), 0);
@@ -2273,7 +2326,7 @@ namespace RMA::UI
 					x += std::min(fs.x, textW * 0.4f);
 				}
 				const auto name = W::Ellipsize(stem, pos.x + u * 0.3f + textW - x);
-				dl::AddText(list, { x, pos.y + (b - im::GetTextLineHeight()) * 0.5f }, Color::Text, name.c_str());
+				dl::AddText(list, { x, pos.y + (b - im::GetTextLineHeight()) * 0.5f }, unloadable ? Color::TextFaint : Color::Text, name.c_str());
 				im::SetCursorScreenPos({ pos.x + width - b * 2.0f - u * 0.2f, pos.y });
 				const bool infoOpen = s.presetInfoOpen == file;
 				if (W::IconButton("##info", Icon::Info, "What this preset uses", infoOpen)) {
@@ -2283,10 +2336,12 @@ namespace RMA::UI
 					}
 				}
 				im::SameLine(0.0f, u * 0.2f);
+				im::BeginDisabled(unloadable);
 				if (W::IconButton("##load", Icon::Folder, "Load this preset")) {
 					s.loadPreset = file;
 					s.openLoadPreset = true;
 				}
+				im::EndDisabled();
 				if (infoOpen) {
 					const auto it = a_model.presetInfo.find(file);
 					im::Indent(u * 0.6f);
@@ -2328,7 +2383,8 @@ namespace RMA::UI
 				Bridge::ListPresets();
 			}
 			ConfirmModal("##confirmload", s.openLoadPreset, "Load this preset?",
-				std::format("{} replaces the current character. Loading a preset cannot be undone, so save the current look first if you want to keep it.", Text::FileStem(s.loadPreset)),
+				std::format("{} replaces the current character. Loading a preset cannot be undone, so save the current look first if you want to keep it.",
+					Text::FileStem(a_model.presetLabels.contains(s.loadPreset) ? a_model.presetLabels.at(s.loadPreset) : s.loadPreset)),
 				"Load", [] {
 					Bridge::LoadPreset(s.loadPreset);
 					auto&             model = Model::Get();
@@ -2585,6 +2641,25 @@ namespace RMA::UI
 		// SKSE Menu Framework callbacks
 
 		void __stdcall RenderWindows();
+
+		// DevBench op=set_text, on the frame after it was asked (model lock held)
+		void ApplyDevBenchText()
+		{
+			if (!s.devbenchTextPending) {
+				return;
+			}
+			s.devbenchTextPending = false;
+			const auto& f = s.devbenchTextField;
+			char*       dest = f == "name" ? s.name : f == "preset" ? s.presetName : f == "search" ? s.search : f == "bodyslide" ? s.bodySlideName : nullptr;
+			const auto  size = f == "name" ? sizeof(s.name) : f == "preset" ? sizeof(s.presetName) : f == "search" ? sizeof(s.search) : sizeof(s.bodySlideName);
+			if (dest) {
+				Text::CopyUtf8(dest, size, s.devbenchText);
+				if (f == "name") {
+					s.nameEdited = true;
+				}
+				logger::debug("DevBench set_text: {} = '{}'", f, dest);
+			}
+		}
 	}
 
 	// both run on DevBench's listener thread; the model lock is the one every frame holds while it draws
@@ -2614,6 +2689,26 @@ namespace RMA::UI
 	}
 
 	void PadDone() { s.devbenchPadDone = true; }
+
+	bool SetText(const std::string& a_field, const std::string& a_text)
+	{
+		if (a_field != "name" && a_field != "preset" && a_field != "search" && a_field != "bodyslide") {
+			return false;
+		}
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		s.devbenchTextField = a_field;
+		s.devbenchText = Text::ToUtf8(a_text);
+		s.devbenchTextPending = true;
+		return true;
+	}
+
+	std::string TypedText(const std::string& a_field)
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		return a_field == "name" ? s.name : a_field == "preset" ? s.presetName : a_field == "search" ? s.search : a_field == "bodyslide" ? s.bodySlideName : "";
+	}
 	bool DoneConfirmOpen() { return s.doneConfirmOpen.load(); }
 	bool DoneFinishFocused() { return s.doneFinishFocused.load(); }
 
@@ -2628,6 +2723,7 @@ namespace RMA::UI
 			}
 			CompensateLock();
 			SyncName(model);
+			ApplyDevBenchText();
 			BuildItems(model);
 
 			PushStyle();
