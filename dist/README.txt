@@ -1,11 +1,33 @@
 RaceMenu Atelier
-Version 1.0.1
+Version 1.1.0
 Based on upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme.
 
 A continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, GPL-3.0, released on Nexus Mods with the
 approval of Nexus Mods staff. This package is the whole mod: it replaces RaceMenu Atelier.
 Source: https://github.com/ApocryphaRealm/RaceMenuAtelierPatch
 
+A native interface for RaceMenu, with the editor's own text in eleven languages, a full controller layout, theme
+support and Apprentice - A Class Overhaul support. RaceMenu is not modified: its own menu stays loaded underneath and
+does the actual work.
+
+New in 1.1.0
+------------
+- The editor's own text follows the game's language: every button, tab, header, tooltip, confirmation, the preset
+  panel, the options and the status line are in English, Japanese, Korean, Chinese, Russian, German, French, Spanish,
+  Italian, Polish and Czech (Data\Interface\Translations\RaceMenuAtelier_<language>.txt; a missing line falls back to
+  English).
+- Cyrillic and other alphabets no longer turn into question marks: preset file names are read by their real names, a
+  name RaceMenu saved from typed text shows as it was typed, and a preset RaceMenu cannot open on this Windows is greyed
+  out instead of failing.
+- A notice above the categories when the menu font cannot draw letters the editor shows, naming the glyph set and
+  where to switch it on (SKSE Menu Framework 3 ships its Cyrillic, Polish, Chinese, Japanese and Korean letters off).
+- Opening RaceMenu from the console (showracemenu) no longer traps the console: the console keeps the keys and closes
+  with ~ as usual, and the editor appears the moment it closes.
+- The options use on/off switches, and the three option sliders move by 0.01 per arrow-key or D-pad nudge.
+- Disabled buttons look disabled.
+
+Apprentice
+----------
 Makes RaceMenu Atelier work with Apprentice - A Class Overhaul. Classes and traits get their own tiles under the CLASS
 and TRAIT categories instead of sitting in the race list, and choosing one records it with Apprentice exactly as
 RaceMenu's own menu does. Without the patch, choosing a class in Atelier changed your race instead (the class's number
