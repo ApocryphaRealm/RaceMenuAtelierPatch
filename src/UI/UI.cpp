@@ -2143,8 +2143,12 @@ namespace RMA::UI
 				for (const auto& p : a_model.picked) {
 					Glyphs::Note(p);
 				}
+				// only the name the list draws: a file listed by a typed label keeps its ANSI-read key beside it, which is
+				// never drawn (combined run cbcb, 2026-10-27: that key's U+0081 / U+0090 counted as missing glyphs)
 				for (const auto& f : a_model.presetFiles) {
-					Glyphs::Note(f);
+					if (!a_model.presetLabels.contains(f)) {
+						Glyphs::Note(f);
+					}
 				}
 				for (const auto& [file, label] : a_model.presetLabels) {
 					Glyphs::Note(label);
