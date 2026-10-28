@@ -58,6 +58,15 @@ namespace RMA::UI::Widgets
 		}
 	}
 
+	// 1.1.0: Atelier draws its buttons through the draw list, which ImGui's BeginDisabled does not dim (it only lowers
+	// style.Alpha, which ImGui's own widgets read). The buttons apply that alpha themselves, so a disabled one - the Load
+	// button of a preset RaceMenu cannot open, Undo with nothing to undo - looks disabled (combined run cbcb, 2026-10-27).
+	float Fade()
+	{
+		const auto* style = im::GetStyle();
+		return style ? std::clamp(style->Alpha, 0.0f, 1.0f) : 1.0f;
+	}
+
 	bool IconButton(const char* a_id, const char* a_icon, const char* a_tooltip, bool a_active, float a_size)
 	{
 		const float s = a_size > 0.0f ? a_size : im::GetFrameHeight();
@@ -68,14 +77,15 @@ namespace RMA::UI::Widgets
 		const bool  held = im::IsItemActive();
 		auto*       list = im::GetWindowDrawList();
 
+		const float fade = Fade();
 		const ImU32 bg = a_active ? Color::GoldWashStrong : held ? Color::FrameActive :
 		                                                    hovered ? Color::FrameHover :
 		                                                              Color::Frame;
-		dl::AddRectFilled(list, pos, pos + ImVec2{ s, s }, bg, Round(U() * 0.25f), 0);
+		dl::AddRectFilled(list, pos, pos + ImVec2{ s, s }, WithAlpha(bg, fade), Round(U() * 0.25f), 0);
 		if (a_active) {
-			dl::AddRect(list, pos, pos + ImVec2{ s, s }, Color::BorderStrong, Round(U() * 0.25f), 0, 1.0f);
+			dl::AddRect(list, pos, pos + ImVec2{ s, s }, WithAlpha(Color::BorderStrong, fade), Round(U() * 0.25f), 0, 1.0f);
 		}
-		DrawIcon(list, pos + ImVec2{ s * 0.5f, s * 0.5f }, a_icon, a_active ? Color::GoldBright : hovered ? Color::Text : Color::TextDim);
+		DrawIcon(list, pos + ImVec2{ s * 0.5f, s * 0.5f }, a_icon, WithAlpha(a_active ? Color::GoldBright : hovered ? Color::Text : Color::TextDim, fade));
 		if (hovered && a_tooltip) {
 			Tooltip(a_tooltip);
 		}
@@ -116,9 +126,12 @@ namespace RMA::UI::Widgets
 			fg = a_active ? Color::GoldBright : hovered ? Color::Text :
 			                                              Color::TextDim;
 		}
+		const float fade = Fade();
+		bg = WithAlpha(bg, fade);
+		fg = WithAlpha(fg, fade);
 		dl::AddRectFilled(list, pos, pos + size, bg, Round(u * 0.25f), 0);
 		if (a_active && !a_primary) {
-			dl::AddRect(list, pos, pos + size, Color::BorderStrong, Round(u * 0.25f), 0, 1.0f);
+			dl::AddRect(list, pos, pos + size, WithAlpha(Color::BorderStrong, fade), Round(u * 0.25f), 0, 1.0f);
 		}
 
 		float x = pos.x + std::max(u * 0.4f, (size.x - content) * 0.5f);
@@ -130,6 +143,41 @@ namespace RMA::UI::Widgets
 			dl::AddText(list, { x, pos.y + (size.y - labelSize.y) * 0.5f }, fg, a_label);
 		}
 		return pressed;
+	}
+
+	bool Toggle(const char* a_label, bool* a_value)
+	{
+		im::PushID(a_label);
+		const float h = im::GetFrameHeight();
+		const float w = h * 2.0f;
+		const float r = h * 0.5f;
+		const auto  pos = im::GetCursorScreenPos();
+		const bool  changed = im::InvisibleButton("##toggle", { w, h });
+		MarkFocus();
+		const bool hovered = im::IsItemHovered();
+		if (changed && a_value) {
+			*a_value = !*a_value;
+		}
+		const bool on = a_value && *a_value;
+		const float fade = Fade();
+		// green on, red off, as every settings page of ours (rule 32); a hovered track brightens
+		const ImU32 track = on ? (hovered ? IM_COL32(92, 191, 96, 255) : IM_COL32(76, 175, 80, 255)) :
+		                         (hovered ? IM_COL32(207, 84, 84, 255) : IM_COL32(191, 68, 68, 255));
+		auto* list = im::GetWindowDrawList();
+		dl::AddRectFilled(list, pos, pos + ImVec2{ w, h }, WithAlpha(track, fade), r, 0);
+		dl::AddCircleFilled(list, { pos.x + r + (on ? w - h : 0.0f), pos.y + r }, r - 2.0f, WithAlpha(IM_COL32(240, 240, 240, 255), fade), 32);
+		im::PopID();
+		if (a_label) {
+			std::string_view label{ a_label };
+			const auto       hash = label.find("##");
+			const auto       visible = hash == std::string_view::npos ? label : label.substr(0, hash);
+			if (!visible.empty()) {
+				im::SameLine();
+				im::AlignTextToFramePadding();
+				im::TextUnformatted(visible.data(), visible.data() + visible.size());
+			}
+		}
+		return changed;
 	}
 
 	void SectionTitle(const char* a_text)

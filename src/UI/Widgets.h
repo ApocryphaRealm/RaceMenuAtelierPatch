@@ -17,6 +17,10 @@ namespace RMA::UI::Widgets
 	// framed button with an optional leading glyph
 	bool Button(const char* a_id, const char* a_icon, const char* a_label, ImVec2 a_size, bool a_primary = false, bool a_active = false);
 
+	// on/off switch for a boolean setting (rule 32: a switch, never a tick-box); same contract as ImGui's Checkbox - true
+	// the frame the value changed - with the label after it on the same line ("##" and what follows is not drawn)
+	bool Toggle(const char* a_label, bool* a_value);
+
 	// gold small-caps title with a hairline
 	void SectionTitle(const char* a_text);
 

@@ -1738,14 +1738,14 @@ namespace RMA::UI
 			// each label carries a fixed ##id, so the widget keeps its identity whatever the language
 			const auto label = [](const char* a_text, const char* a_id) { return std::string(a_text) + a_id; };
 			W::SectionTitle(TR("RMA_OptSliders", "SLIDERS"));
-			save |= im::Checkbox(label(TR("RMA_OptSexFilter", "Hide body sliders of the other body type"), "##sexfilter").c_str(), &st.sexFilter);
-			save |= im::Checkbox(label(TR("RMA_OptGroupHeaders", "Group related sliders under headers"), "##groups").c_str(), &st.groupHeaders);
-			save |= im::Checkbox(label(TR("RMA_OptTechnicalNames", "Show RaceMenu's technical slider names"), "##technical").c_str(), &st.showTechnicalNames);
-			save |= im::Checkbox(label(TR("RMA_OptOverdrive", "Typed values may exceed custom body morph ranges"), "##overdrive").c_str(), &st.overdrive);
+			save |= W::Toggle(label(TR("RMA_OptSexFilter", "Hide body sliders of the other body type"), "##sexfilter").c_str(), &st.sexFilter);
+			save |= W::Toggle(label(TR("RMA_OptGroupHeaders", "Group related sliders under headers"), "##groups").c_str(), &st.groupHeaders);
+			save |= W::Toggle(label(TR("RMA_OptTechnicalNames", "Show RaceMenu's technical slider names"), "##technical").c_str(), &st.showTechnicalNames);
+			save |= W::Toggle(label(TR("RMA_OptOverdrive", "Typed values may exceed custom body morph ranges"), "##overdrive").c_str(), &st.overdrive);
 			W::SectionTitle(TR("RMA_OptInterface", "INTERFACE"));
-			save |= im::Checkbox(label(TR("RMA_OptConfirmDone", "Ask before finishing the character"), "##confirmdone").c_str(), &st.confirmDone);
-			save |= im::Checkbox(label(TR("RMA_OptGamepadDone", "Controller X finishes the character, as in RaceMenu"), "##gamepaddone").c_str(), &st.gamepadDone);
-			save |= im::Checkbox(label(TR("RMA_OptSidePanel", "Show the scene and presets panel"), "##sidepanel").c_str(), &st.sidePanel);
+			save |= W::Toggle(label(TR("RMA_OptConfirmDone", "Ask before finishing the character"), "##confirmdone").c_str(), &st.confirmDone);
+			save |= W::Toggle(label(TR("RMA_OptGamepadDone", "Controller X finishes the character, as in RaceMenu"), "##gamepaddone").c_str(), &st.gamepadDone);
+			save |= W::Toggle(label(TR("RMA_OptSidePanel", "Show the scene and presets panel"), "##sidepanel").c_str(), &st.sidePanel);
 			im::SetNextItemWidth(u * 10.0f);
 			im::SliderFloat(label(TR("RMA_OptUiScale", "Interface size"), "##uiscale").c_str(), &st.uiScale, 0.7f, 1.6f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();

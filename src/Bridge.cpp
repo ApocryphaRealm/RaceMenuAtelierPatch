@@ -760,7 +760,18 @@ namespace RMA::Bridge
 					::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wide.data(), static_cast<int>(wide.size()), ansi.data(), n, nullptr, &usedDefault);
 				}
 				if (ansi.empty() || usedDefault) {
-					logger::info("preset '{}' has letters outside this Windows' code page; RaceMenu cannot open it", name);
+					// once per preset per game session: the list is re-read every time the presets panel draws it
+					// (combined run cbcb, 2026-10-27: the line repeated every 0.5 s)
+					static std::mutex                      loggedLock;
+					static std::unordered_set<std::string> logged;
+					bool                                   first = false;
+					{
+						std::scoped_lock lock(loggedLock);
+						first = logged.insert(name).second;
+					}
+					if (first) {
+						logger::info("preset '{}' has letters outside this Windows' code page; RaceMenu cannot open it", name);
+					}
 					out.unloadable.insert(name);
 				} else {
 					if (ansi != name && Text::IsUtf8(ansi)) {
