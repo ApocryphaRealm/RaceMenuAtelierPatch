@@ -3,7 +3,7 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
-## 1.1.0 - 2026-10-27 - untested
+## 1.1.0 - 2026-10-27 - working
 
 (1.0.2, the Cyrillic fix below, was never posted; it is folded into 1.1.0 because translating the editor is new functionality.)
 
