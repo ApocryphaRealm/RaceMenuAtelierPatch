@@ -1,6 +1,7 @@
 #include "UI/Glyphs.h"
 
 #include "Model.h"
+#include "Strings.h"
 #include "UI/Theme.h"
 
 #include <nlohmann/json.hpp>
@@ -75,63 +76,9 @@ namespace RMA::UI::Glyphs
 			return kOther;
 		}
 
-		// The notice in the eleven languages: what is missing (any framework), then what to do in SKSE Menu Framework
-		// or in Apocrypha Menu Framework. {0} = the glyph sets ("Cyrillic"), {1} = their INI keys ("EnableCyrillic");
-		// both stay as SKSE Menu Framework shows and spells them, as do its menu names.
-		struct NoticeText
-		{
-			const char* language;  // sLanguage
-			const char* missing;
-			const char* smf;
-			const char* amf;
-		};
-
-		constexpr std::array kNotices{
-			NoticeText{ "english",
-				"Some letters cannot be drawn: the menu font has no {0} letters.",
-				"In SKSE Menu Framework choose Options > Open Settings > Character Glyphs > {0}, or set {1} = true in SKSEMenuFramework.ini and restart the game.",
-				"Apocrypha Menu Framework adds missing letters by itself; if this message stays, please report it with RaceMenuAtelier.log." },
-			NoticeText{ "japanese",
-				"一部の文字を表示できません: メニューのフォントに {0} の文字がありません。",
-				"SKSE Menu Framework で Options > Open Settings > Character Glyphs > {0} を選ぶか、SKSEMenuFramework.ini で {1} = true にしてゲームを再起動してください。",
-				"Apocrypha Menu Framework は足りない文字を自動で追加します。このメッセージが消えない場合は RaceMenuAtelier.log を添えて報告してください。" },
-			NoticeText{ "korean",
-				"일부 글자를 표시할 수 없습니다: 메뉴 글꼴에 {0} 문자가 없습니다.",
-				"SKSE Menu Framework에서 Options > Open Settings > Character Glyphs > {0}을(를) 선택하거나, SKSEMenuFramework.ini에서 {1} = true로 설정한 뒤 게임을 다시 시작하세요.",
-				"Apocrypha Menu Framework는 빠진 글자를 스스로 추가합니다. 이 메시지가 계속 보이면 RaceMenuAtelier.log와 함께 알려 주세요." },
-			NoticeText{ "chinese",
-				"部分文字无法显示：菜单字体缺少 {0} 字符。",
-				"请在 SKSE Menu Framework 中选择 Options > Open Settings > Character Glyphs > {0}，或在 SKSEMenuFramework.ini 中设置 {1} = true 并重启游戏。",
-				"Apocrypha Menu Framework 会自动补充缺少的文字；如果此消息一直存在，请附上 RaceMenuAtelier.log 报告。" },
-			NoticeText{ "russian",
-				"Некоторые буквы не отображаются: в шрифте меню нет букв набора {0}.",
-				"В SKSE Menu Framework выберите Options > Open Settings > Character Glyphs > {0} или укажите {1} = true в SKSEMenuFramework.ini и перезапустите игру.",
-				"Apocrypha Menu Framework добавляет недостающие буквы сам; если это сообщение не исчезает, сообщите об этом и приложите RaceMenuAtelier.log." },
-			NoticeText{ "german",
-				"Einige Buchstaben können nicht angezeigt werden: Der Menüschrift fehlen die Zeichen für {0}.",
-				"Wähle in SKSE Menu Framework Options > Open Settings > Character Glyphs > {0} oder setze {1} = true in SKSEMenuFramework.ini und starte das Spiel neu.",
-				"Apocrypha Menu Framework ergänzt fehlende Buchstaben selbst; bleibt diese Meldung, melde es bitte mit RaceMenuAtelier.log." },
-			NoticeText{ "french",
-				"Certaines lettres ne peuvent pas être affichées : la police du menu n'a pas les caractères {0}.",
-				"Dans SKSE Menu Framework, choisissez Options > Open Settings > Character Glyphs > {0}, ou mettez {1} = true dans SKSEMenuFramework.ini et relancez le jeu.",
-				"Apocrypha Menu Framework ajoute lui-même les lettres manquantes ; si ce message reste, signalez-le avec RaceMenuAtelier.log." },
-			NoticeText{ "spanish",
-				"Algunas letras no se pueden mostrar: la fuente del menú no tiene los caracteres {0}.",
-				"En SKSE Menu Framework elige Options > Open Settings > Character Glyphs > {0}, o pon {1} = true en SKSEMenuFramework.ini y reinicia el juego.",
-				"Apocrypha Menu Framework añade por sí mismo las letras que faltan; si este mensaje sigue, infórmalo junto con RaceMenuAtelier.log." },
-			NoticeText{ "italian",
-				"Alcune lettere non possono essere mostrate: il font del menu non ha i caratteri {0}.",
-				"In SKSE Menu Framework scegli Options > Open Settings > Character Glyphs > {0}, oppure imposta {1} = true in SKSEMenuFramework.ini e riavvia il gioco.",
-				"Apocrypha Menu Framework aggiunge da sé le lettere mancanti; se questo messaggio resta, segnalalo allegando RaceMenuAtelier.log." },
-			NoticeText{ "polish",
-				"Niektórych liter nie można wyświetlić: czcionka menu nie ma znaków {0}.",
-				"W SKSE Menu Framework wybierz Options > Open Settings > Character Glyphs > {0} albo ustaw {1} = true w SKSEMenuFramework.ini i uruchom grę ponownie.",
-				"Apocrypha Menu Framework sam dodaje brakujące litery; jeśli ten komunikat nie znika, zgłoś to i dołącz RaceMenuAtelier.log." },
-			NoticeText{ "czech",
-				"Některá písmena nelze zobrazit: písmo nabídky nemá znaky {0}.",
-				"V SKSE Menu Framework zvolte Options > Open Settings > Character Glyphs > {0}, nebo nastavte {1} = true v SKSEMenuFramework.ini a restartujte hru.",
-				"Apocrypha Menu Framework chybějící písmena doplňuje sám; pokud tato zpráva nezmizí, nahlaste to a přiložte RaceMenuAtelier.log." },
-		};
+		// 1.1.0: the notice's text is in the translation files with the rest of Atelier's text (RMA_Glyph*), so
+		// translation-coverage checks it. {0} = the glyph sets ("Cyrillic"), {1} = their INI keys ("EnableCyrillic"); both
+		// stay as SKSE Menu Framework shows and spells them, as do its menu names.
 
 		enum class Framework
 		{
@@ -190,16 +137,6 @@ namespace RMA::UI::Glyphs
 			}
 		}
 
-		std::string Format(std::string a_text, const std::string& a_0, const std::string& a_1)
-		{
-			for (const auto& [token, value] : { std::pair{ std::string_view{ "{0}" }, &a_0 }, std::pair{ std::string_view{ "{1}" }, &a_1 } }) {
-				for (auto pos = a_text.find(token); pos != std::string::npos; pos = a_text.find(token, pos + value->size())) {
-					a_text.replace(pos, token.size(), *value);
-				}
-			}
-			return a_text;
-		}
-
 		// render thread
 		std::vector<char32_t>   g_pending;          // characters noted this frame
 		std::vector<bool>       g_seenFlag(0x10000, false);
@@ -239,26 +176,22 @@ namespace RMA::UI::Glyphs
 					keys += (keys.empty() ? "" : ", ") + std::string(s.key);
 				}
 			}
-			const auto lang = Text::GameLanguage();
-			const NoticeText* chosen = &kNotices[0];
-			for (const auto& n : kNotices) {
-				if (lang == n.language) {
-					chosen = &n;
-					break;
-				}
-			}
-			const auto compose = [&](const NoticeText& n) {
-				std::string text = Format(n.missing, sets, keys);
+			const char* missing = TR("RMA_GlyphMissing", "Some letters cannot be drawn: the menu font has no {0} letters.");
+			const char* smf = TR("RMA_GlyphSmf", "In SKSE Menu Framework choose Options > Open Settings > Character Glyphs > {0}, or set {1} = true in SKSEMenuFramework.ini and restart the game.");
+			const char* amf = TR("RMA_GlyphAmf", "Apocrypha Menu Framework adds missing letters by itself; if this message stays, please report it with RaceMenuAtelier.log.");
+			const auto  compose = [&](const char* a_missing, const char* a_smf, const char* a_amf) {
+				std::string text = Strings::Format(a_missing, sets, keys);
 				if (g_framework == Framework::Smf && !keys.empty()) {
-					text += "\n" + Format(n.smf, sets, keys);
+					text += "\n" + Strings::Format(a_smf, sets, keys);
 				} else if (g_framework == Framework::Amf) {
-					text += "\n" + Format(n.amf, sets, keys);
+					text += "\n" + Strings::Format(a_amf, sets, keys);
 				}
 				return text;
 			};
-			g_notice = compose(*chosen);
-			if (chosen != &kNotices[0] && !CanDraw(a_font, g_notice)) {
-				g_notice = compose(kNotices[0]);  // the font cannot draw the player's language either: English can be read
+			g_notice = compose(missing, smf, amf);
+			if (Strings::Language() != "english" && !CanDraw(a_font, g_notice)) {
+				// the font cannot draw the player's language either: English can be read
+				g_notice = compose(Strings::English(missing), Strings::English(smf), Strings::English(amf));
 			}
 		}
 

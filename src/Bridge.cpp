@@ -1,4 +1,5 @@
 #include "Bridge.h"
+#include "Strings.h"
 
 #include <nlohmann/json.hpp>
 
@@ -76,10 +77,15 @@ namespace RMA::Bridge
 			a_fn(model);
 		}
 
-		void Status(std::string a_text)
+		// a line for the editor's status bar: a_text is what TR returned, {0}, {1} ... are filled with the values; the log
+		// and DevBench get the English line
+		template <class... Args>
+		void Status(const char* a_text, const Args&... a_values)
 		{
-			logger::info("[status] {}", a_text);
-			WithModel([&](Model& m) { m.SetStatus(std::move(a_text)); });
+			auto shown = Strings::Format(a_text, a_values...);
+			auto english = Strings::Format(Strings::English(a_text), a_values...);
+			logger::info("[status] {}", english);
+			WithModel([&](Model& m) { m.SetStatus(std::move(shown), std::move(english)); });
 		}
 
 		RE::GPtr<RE::GFxMovieView> Movie()
@@ -938,7 +944,7 @@ namespace RMA::Bridge
 						hp.index = static_cast<int>(GetNum(part, "index", i));
 						hp.plugin = GetStr(part, "source");
 						if (hp.plugin.empty()) {
-							hp.plugin = "Unknown source";
+							hp.plugin = TR("RMA_UnknownSource", "Unknown source");
 						}
 						hp.label = Text::Humanise(hp.name, true);
 						hp.search = Text::Lower(std::format("{} {} {} {}", hp.index, hp.name, hp.label, hp.plugin));
@@ -1020,7 +1026,7 @@ namespace RMA::Bridge
 			if (const auto player = RE::PlayerCharacter::GetSingleton()) {
 				const bool ok = player->NotifyAnimationGraph(a_event);
 				if (!ok) {
-					Status("That pose is not available for this character");
+					Status(TR("RMA_StatusPoseUnavailable", "That pose is not available for this character"));
 				}
 			}
 		});
@@ -1061,7 +1067,7 @@ namespace RMA::Bridge
 	void SavePreset(const std::string& a_name)
 	{
 		if (!IsSafePresetName(a_name)) {
-			Status("Invalid preset name");
+			Status(TR("RMA_StatusInvalidPresetName", "Invalid preset name"));
 			return;
 		}
 		QueueUI([a_name] {
@@ -1075,7 +1081,11 @@ namespace RMA::Bridge
 			movie->Invoke("_global.skse.plugins.CharGen.SavePreset", &result, args, 2);
 			const bool failed = PresetCallFailed(result);
 			logger::info("SavePreset({}) failed={}", path, failed);
-			Status(failed ? "Could not save the preset" : "Saved preset " + a_name);
+			if (failed) {
+				Status(TR("RMA_StatusSaveFailed", "Could not save the preset"));
+			} else {
+				Status(TR("RMA_StatusSavedPreset", "Saved preset {0}"), a_name);
+			}
 			if (!failed) {
 				ListPresets();
 			}
@@ -1088,7 +1098,7 @@ namespace RMA::Bridge
 	void LoadPreset(const std::string& a_relativePath)
 	{
 		if (!IsSafePresetPath(a_relativePath)) {
-			Status("Invalid preset path");
+			Status(TR("RMA_StatusInvalidPresetPath", "Invalid preset path"));
 			return;
 		}
 		// 1.0.2: RaceMenu opens the ANSI form of the name (see ListPresetFiles)
@@ -1101,7 +1111,7 @@ namespace RMA::Bridge
 		}
 		if (gamePath.empty()) {
 			logger::info("LoadPreset({}): no ANSI file name on this Windows, RaceMenu cannot open it", a_relativePath);
-			Status("Could not load " + a_relativePath);  // no new text to translate: the list already greys the row out
+			Status(TR("RMA_StatusLoadFailed", "Could not load {0}"), a_relativePath);
 			return;
 		}
 		const auto session = Current();
@@ -1120,12 +1130,12 @@ namespace RMA::Bridge
 			const bool failed = PresetCallFailed(result);
 			logger::info("LoadPreset({}) failed={}", path, failed);
 			if (failed) {
-				Status("Could not load " + a_relativePath);
+				Status(TR("RMA_StatusLoadFailed", "Could not load {0}"), a_relativePath);
 				return;
 			}
 			const auto hairColor = static_cast<std::int32_t>(static_cast<std::int64_t>(GetNum(dataOut, "hairColor")));
 			SendModEvent("RSM_RequestTintSave", "", 0.0f);
-			Status("Loaded " + a_relativePath);
+			Status(TR("RMA_StatusLoaded", "Loaded {0}"), a_relativePath);
 			std::thread([hairColor, session] {
 				std::this_thread::sleep_for(500ms);
 				SKSE::GetTaskInterface()->AddUITask([hairColor, session] {
@@ -1178,7 +1188,8 @@ namespace RMA::Bridge
 						}
 					}
 				}
-				static constexpr std::array kPartTypes{ "Misc", "Face", "Eyes", "Hair", "Facial hair", "Scar", "Eyebrows" };
+				const std::array kPartTypes{ TR("RMA_PartMisc", "Misc"), TR("RMA_PartFace", "Face"), TR("RMA_PartEyes", "Eyes"), TR("RMA_PartHair", "Hair"),
+					TR("RMA_PartFacialHair", "Facial hair"), TR("RMA_PartScar", "Scar"), TR("RMA_PartEyebrows", "Eyebrows") };
 				if (const auto it = json.find("headParts"); it != json.end() && it->is_array()) {
 					for (const auto& part : *it) {
 						if (!part.is_object()) {
@@ -1187,7 +1198,7 @@ namespace RMA::Bridge
 						const int   type = part.value("type", -1);
 						std::string id = part.value("formIdentifier", std::string{});
 						const auto  plugin = id.substr(0, id.find('|'));
-						const auto  typeName = type >= 0 && type < static_cast<int>(kPartTypes.size()) ? std::string(kPartTypes[type]) : std::format("Type {}", type);
+						const auto  typeName = type >= 0 && type < static_cast<int>(kPartTypes.size()) ? std::string(kPartTypes[type]) : Strings::Format(TR("RMA_PartTypeN", "Type {0}"), type);
 						info.headParts.push_back(std::format("{} - {}", typeName, plugin.empty() ? "?" : plugin));
 					}
 				}
@@ -1212,12 +1223,12 @@ namespace RMA::Bridge
 	void ExportBodySlide(bool a_himbo, const std::string& a_name, std::vector<std::pair<std::string, double>> a_sliders)
 	{
 		if (!IsSafePresetName(a_name)) {
-			Status("Invalid BodySlide preset name");
+			Status(TR("RMA_StatusInvalidBodySlideName", "Invalid BodySlide preset name"));
 			return;
 		}
 		std::erase_if(a_sliders, [](const auto& s) { return !IsSafeSliderName(s.first) || !std::isfinite(s.second); });
 		if (a_sliders.empty()) {
-			Status(a_himbo ? "No HIMBO morphs on this character" : "No CBBE 3BA morphs on this character");
+			Status(a_himbo ? TR("RMA_StatusNoHimbo", "No HIMBO morphs on this character") : TR("RMA_StatusNoCbbe", "No CBBE 3BA morphs on this character"));
 			return;
 		}
 		SKSE::GetTaskInterface()->AddTask([a_himbo, a_name, sliders = std::move(a_sliders)] {
@@ -1229,7 +1240,7 @@ namespace RMA::Bridge
 				std::filesystem::create_directories(outPath.parent_path());
 				std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
 				if (!out) {
-					Status("Could not write the BodySlide preset");
+					Status(TR("RMA_StatusBodySlideWriteFailed", "Could not write the BodySlide preset"));
 					return;
 				}
 				out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SliderPresets>\n";
@@ -1246,10 +1257,10 @@ namespace RMA::Bridge
 				}
 				out << "  </Preset>\n</SliderPresets>\n";
 				logger::info("exported {} BodySlide sliders to {}", sliders.size(), outPath.string());
-				Status(std::format("Saved {} BodySlide preset ({} sliders)", flavor, sliders.size()));
+				Status(TR("RMA_StatusBodySlideSaved", "Saved {0} BodySlide preset ({1} sliders)"), flavor, sliders.size());
 			} catch (const std::exception& e) {
 				logger::warn("BodySlide export failed: {}", e.what());
-				Status("BodySlide export failed");
+				Status(TR("RMA_StatusBodySlideFailed", "BodySlide export failed"));
 			}
 		});
 	}
@@ -1281,7 +1292,7 @@ namespace RMA::Bridge
 			}
 			RE::GFxValue mode(3.0);  // Sliders, Presets, Camera, Sculpt
 			if (!movie->Invoke(Path(".modeSelect.setMode").c_str(), nullptr, &mode, 1)) {
-				Status("RaceMenu's Sculpt mode is not available");
+				Status(TR("RMA_StatusSculptUnavailable", "RaceMenu's Sculpt mode is not available"));
 				return;
 			}
 			SetMode(Mode::Sculpt);
@@ -1340,12 +1351,12 @@ namespace RMA::Bridge
 	{
 		const auto dir = SKSE::log::log_directory();
 		if (!dir) {
-			Status("Could not find the SKSE log folder");
+			Status(TR("RMA_StatusNoLogFolder", "Could not find the SKSE log folder"));
 			return;
 		}
 		std::ofstream out(*dir / "RaceMenuAtelier-diagnostic.txt", std::ios::trunc);
 		if (!out) {
-			Status("Could not write the diagnostic report");
+			Status(TR("RMA_StatusDiagnosticsFailed", "Could not write the diagnostic report"));
 			return;
 		}
 		const auto* plugin = SKSE::PluginDeclaration::GetSingleton();
@@ -1374,6 +1385,6 @@ namespace RMA::Bridge
 			}
 		}
 		out << "Attach this file together with the full Crash Logger report.\n";
-		Status("Diagnostic report saved next to the SKSE log");
+		Status(TR("RMA_StatusDiagnosticsSaved", "Diagnostic report saved next to the SKSE log"));
 	}
 }

@@ -4,6 +4,7 @@
 #include "Model.h"
 #include "Preview.h"
 #include "Settings.h"
+#include "Strings.h"
 #include "UI/Glyphs.h"
 #include "UI/Theme.h"
 #include "UI/Widgets.h"
@@ -97,16 +98,9 @@ namespace RMA::UI
 			return 0;
 		}
 
-		constexpr std::array<std::pair<const char*, const char*>, 8> kPoses{ {
-			{ "IdleWave", "Wave" },
-			{ "IdleApplaud2", "Applaud" },
-			{ "IdleLaugh", "Laugh" },
-			{ "IdleCower", "Cower" },
-			{ "IdleCiceroDance1", "Dance" },
-			{ "IdleHandsBehindBack", "Hands behind back" },
-			{ "IdleGetAttention", "Get attention" },
-			{ "IdleBook_Reading", "Read a book" },
-		} };
+		// the idles the pose list plays; their names (in the same order) are in SceneSection, translated
+		constexpr std::array<const char*, 8> kPoses{ "IdleWave", "IdleApplaud2", "IdleLaugh", "IdleCower", "IdleCiceroDance1",
+			"IdleHandsBehindBack", "IdleGetAttention", "IdleBook_Reading" };
 
 		// RaceMenu's colour palette plus skin and hair tones
 		constexpr std::array<std::uint32_t, 16> kPalette{
@@ -427,7 +421,7 @@ namespace RMA::UI
 			if (a_scanCode == 0x58) {
 				return "F12";
 			}
-			return std::format("key 0x{:X}", a_scanCode);
+			return Strings::Format(TR("RMA_KeyCode", "key {0}"), std::format("0x{:X}", a_scanCode));
 		}
 
 		const char* DisplayLabel(const Entry& a_entry, bool a_short)
@@ -785,7 +779,7 @@ namespace RMA::UI
 			const auto  size = im::CalcTextSize(text.c_str());
 			dl::AddText(a_list, a_pos, a_changed ? Color::GoldBright : Color::Text, text.c_str());
 			if (a_entry.custom && size.x + U() * 3.5f < a_maxWidth && !Settings::Get().showTechnicalNames) {
-				W::SmallText(a_list, a_pos + ImVec2{ size.x + U() * 0.45f, U() * 0.14f }, Color::TextFaint, "custom", 0.72f);
+				W::SmallText(a_list, a_pos + ImVec2{ size.x + U() * 0.45f, U() * 0.14f }, Color::TextFaint, TR("RMA_TagCustom", "custom"), 0.72f);
 			}
 		}
 
@@ -846,7 +840,8 @@ namespace RMA::UI
 				const bool outside = a_entry.position < a_entry.min - 1e-9 || a_entry.position > a_entry.max + 1e-9;
 				dl::AddText(list, { valueX, lineY }, outside ? Color::Danger : hovered ? Color::GoldBright : a_changed ? Color::Gold : Color::Value, valueText.c_str());
 				if (hovered) {
-					W::Tooltip(a_entry.canOverdrive && Settings::Get().overdrive ? "Click to type a value (overdrive: may exceed the range)" : "Click to type a value");
+					W::Tooltip(a_entry.canOverdrive && Settings::Get().overdrive ? TR("RMA_TypeValueOverdrive", "Click to type a value (overdrive: may exceed the range)") :
+				                                                                   TR("RMA_TypeValue", "Click to type a value"));
 				}
 			}
 
@@ -855,7 +850,7 @@ namespace RMA::UI
 				const ImVec2 sw{ g.u * 1.7f, g.line * 0.8f };
 				labelRight -= sw.x + g.u * 0.4f;
 				im::SetCursorScreenPos({ labelRight + g.u * 0.4f, lineY + (g.line - sw.y) * 0.5f });
-				if (W::Swatch("##swatch", a_entry.fillColor, sw, "Edit colour")) {
+				if (W::Swatch("##swatch", a_entry.fillColor, sw, TR("RMA_EditColour", "Edit colour"))) {
 					s.colorKey = a_entry.key;
 					s.openColor = true;
 				}
@@ -866,7 +861,7 @@ namespace RMA::UI
 				const float bw = g.line;
 				labelRight -= bw + g.u * 0.3f;
 				im::SetCursorScreenPos({ labelRight + g.u * 0.3f, lineY });
-				if (W::IconButton("##browse", Icon::Search, "Browse every available part", false, bw)) {
+				if (W::IconButton("##browse", Icon::Search, TR("RMA_BrowseParts", "Browse every available part"), false, bw)) {
 					OpenHeadPartBrowser(a_entry);
 				}
 			}
@@ -937,7 +932,7 @@ namespace RMA::UI
 				const float bw = g.line;
 				labelRight -= bw;
 				im::SetCursorScreenPos({ labelRight, lineY });
-				if (W::IconButton("##browse", Icon::Search, "Browse every available part", false, bw)) {
+				if (W::IconButton("##browse", Icon::Search, TR("RMA_BrowseParts", "Browse every available part"), false, bw)) {
 					OpenHeadPartBrowser(a_entry);
 				}
 				labelRight -= g.u * 0.4f;
@@ -983,7 +978,7 @@ namespace RMA::UI
 				}
 			}
 			if (main.empty()) {
-				main = std::format("Option {}", cur);
+				main = Strings::Format(TR("RMA_OptionN", "Option {0}"), cur);
 			}
 			main = W::Ellipsize(main, boxW - counterSize.x - g.u * 1.5f);
 			const auto mainSize = im::CalcTextSize(main.c_str());
@@ -992,7 +987,7 @@ namespace RMA::UI
 				OpenHeadPartBrowser(a_entry);
 			}
 			if (hovered && headPart) {
-				W::Tooltip("Click to browse every available part");
+				W::Tooltip(TR("RMA_ClickBrowseParts", "Click to browse every available part"));
 			}
 
 			im::SetCursorScreenPos({ right - g.ctrl, ctrlY });
@@ -1014,11 +1009,11 @@ namespace RMA::UI
 			const float half = (a_width - g.padX * 2.0f - g.u * 0.4f) * 0.5f;
 			const int   cur = static_cast<int>(std::lround(a_entry.position));
 			im::SetCursorScreenPos({ a_pos.x + g.padX, ctrlY });
-			if (W::Button("##male", Icon::Mars, "Male", { half, g.ctrl }, false, cur == 0) && cur != 0) {
+			if (W::Button("##male", Icon::Mars, TR("RMA_Male", "Male"), { half, g.ctrl }, false, cur == 0) && cur != 0) {
 				CommitValue(a_model, a_entry, 0.0);
 			}
 			im::SetCursorScreenPos({ a_pos.x + g.padX + half + g.u * 0.4f, ctrlY });
-			if (W::Button("##female", Icon::Venus, "Female", { half, g.ctrl }, false, cur == 1) && cur != 1) {
+			if (W::Button("##female", Icon::Venus, TR("RMA_Female", "Female"), { half, g.ctrl }, false, cur == 1) && cur != 1) {
 				CommitValue(a_model, a_entry, 1.0);
 			}
 		}
@@ -1030,14 +1025,14 @@ namespace RMA::UI
 			const float lineY = a_pos.y + g.padY;
 			const ImVec2 sw{ g.u * 1.9f, g.line * 0.8f };
 			im::SetCursorScreenPos({ right - sw.x, lineY + (g.line - sw.y) * 0.5f });
-			if (W::Swatch("##swatch", a_entry.fillColor, sw, "Edit colour")) {
+			if (W::Swatch("##swatch", a_entry.fillColor, sw, TR("RMA_EditColour", "Edit colour"))) {
 				s.colorKey = a_entry.key;
 				s.openColor = true;
 			}
 			DrawLabel(list, a_entry, a_item, { a_pos.x + g.padX, lineY }, right - sw.x - g.u * 0.5f - (a_pos.x + g.padX), a_changed);
 
 			const float ctrlY = lineY + g.line + g.gap;
-			const auto  stem = a_entry.texture.empty() ? std::string("Default") : Text::FileStem(a_entry.texture);
+			const auto  stem = a_entry.texture.empty() ? std::string(TR("RMA_Default", "Default")) : Text::FileStem(a_entry.texture);
 			im::SetCursorScreenPos({ a_pos.x + g.padX, ctrlY });
 			const float  width = right - (a_pos.x + g.padX);
 			const ImVec2 pos{ a_pos.x + g.padX, ctrlY };
@@ -1147,7 +1142,7 @@ namespace RMA::UI
 				const auto ns = im::CalcTextSize(name.c_str());
 				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
 				if (hovered) {
-					const auto tip = current ? std::string("Current race") : "Change the race to " + e.label;
+					const auto tip = current ? std::string(TR("RMA_CurrentRace", "Current race")) : Strings::Format(TR("RMA_ChangeRaceTo", "Change the race to {0}"), e.label);
 					W::Tooltip(tip.c_str());
 				}
 				if (clicked && !current) {
@@ -1205,7 +1200,8 @@ namespace RMA::UI
 				const auto ns = im::CalcTextSize(name.c_str());
 				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
 				if (hovered) {
-					const auto tip = e.description.empty() ? (current ? std::string("Chosen") : "Choose " + e.label) : e.label + "\n\n" + e.description;
+					const auto tip = e.description.empty() ? (current ? std::string(TR("RMA_Chosen", "Chosen")) : Strings::Format(TR("RMA_ChooseX", "Choose {0}"), e.label)) :
+				                                          e.label + "\n\n" + e.description;
 					W::Tooltip(tip.c_str());
 				}
 				if (clicked && !current) {
@@ -1250,25 +1246,25 @@ namespace RMA::UI
 			im::TextColored(ToVec4(Color::Gold), "%s", e->label.c_str());
 			im::Separator();
 			im::BeginDisabled(!e->IsChanged());
-			if (im::Selectable("Reset to the starting value")) {
+			if (im::Selectable(TR("RMA_ResetToStart", "Reset to the starting value"))) {
 				a_model.ResetEntry(*e);
 			}
 			im::EndDisabled();
-			if (e->control == Control::Slider && im::Selectable("Type a value")) {
+			if (e->control == Control::Slider && im::Selectable(TR("RMA_TypeAValue", "Type a value"))) {
 				s.editKey = e->key;
 				s.editValue = e->position;
 				s.editGrace = 4;
 			}
-			if (e->control == Control::Slider && e->min < 0.0 && e->max > 0.0 && im::Selectable("Set to zero")) {
+			if (e->control == Control::Slider && e->min < 0.0 && e->max > 0.0 && im::Selectable(TR("RMA_SetZero", "Set to zero"))) {
 				CommitValue(a_model, *e, 0.0);
 			}
 			if (e->hasColor || e->control == Control::Paint) {
-				if (im::Selectable("Edit colour")) {
+				if (im::Selectable(TR("RMA_EditColour", "Edit colour"))) {
 					s.colorKey = e->key;
 					s.openColor = true;
 				}
 			}
-			if (e->callback == "ChangeHeadPart" && im::Selectable("Browse parts")) {
+			if (e->callback == "ChangeHeadPart" && im::Selectable(TR("RMA_BrowsePartsShort", "Browse parts"))) {
 				OpenHeadPartBrowser(*e);
 			}
 			im::Separator();
@@ -1368,10 +1364,10 @@ namespace RMA::UI
 				}
 				im::PopID();
 			};
-			W::SectionTitle("PALETTE");
+			W::SectionTitle(TR("RMA_Palette", "PALETTE"));
 			paletteRow("palette", kPalette, false);
 			if (!Settings::Get().recentColors.empty()) {
-				W::SectionTitle("RECENT");
+				W::SectionTitle(TR("RMA_Recent", "RECENT"));
 				paletteRow("recent", Settings::Get().recentColors, true);
 			}
 
@@ -1391,7 +1387,7 @@ namespace RMA::UI
 			}
 
 			im::Spacing();
-			if (W::Button("##revert", Icon::Undo, "Revert", { u * 6.0f, 0.0f })) {
+			if (W::Button("##revert", Icon::Undo, TR("RMA_Revert", "Revert"), { u * 6.0f, 0.0f })) {
 				a_model.SetColor(*e, s.colorFrom, true);
 				s.colorPending = false;
 				const auto c = s.colorFrom;
@@ -1401,7 +1397,7 @@ namespace RMA::UI
 				s.colorEdit[3] = ((c >> 24) & 0xFF) / 255.0f;
 			}
 			im::SameLine();
-			if (W::Button("##ok", Icon::Check, "Done", { u * 6.0f, 0.0f }, true)) {
+			if (W::Button("##ok", Icon::Check, TR("RMA_Done", "Done"), { u * 6.0f, 0.0f }, true)) {
 				im::CloseCurrentPopup();
 			}
 			im::EndPopup();
@@ -1452,20 +1448,20 @@ namespace RMA::UI
 			ApplyFont();
 			auto* e = a_model.Find(s.textureKey);
 			if (!e || e->listType < 0 || e->listType >= static_cast<int>(a_model.makeup.size())) {
-				im::TextColored(ToVec4(Color::TextDim), "No textures are registered for this slot.");
+				im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_NoTexturesSlot", "No textures are registered for this slot."));
 				im::EndPopup();
 				return;
 			}
 			const auto& catalog = a_model.makeup[e->listType];
 			im::TextColored(ToVec4(Color::GoldBright), "%s", e->label.c_str());
-			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, "Click or use the arrow keys - the character updates at once", 0.75f);
+			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, TR("RMA_TextureHint", "Click or use the arrow keys - the character updates at once"), 0.75f);
 			im::Dummy({ 1.0f, U() * 0.85f });
 
 			if (im::IsWindowAppearing()) {
 				im::SetKeyboardFocusHere();
 			}
 			im::SetNextItemWidth(-1.0f);
-			if (im::InputTextWithHint("##search", "Search textures (kept between openings)", s.textureSearch, sizeof(s.textureSearch))) {
+			if (im::InputTextWithHint("##search", TR("RMA_SearchTextures", "Search textures (kept between openings)"), s.textureSearch, sizeof(s.textureSearch))) {
 				s.textureScroll = true;
 			}
 			const auto query = Text::Lower(s.textureSearch);
@@ -1496,7 +1492,7 @@ namespace RMA::UI
 			BeginFlatList("##list", { 0.0f, -footerH });
 			ApplyFont();
 			if (shown.empty()) {
-				im::TextColored(ToVec4(Color::TextFaint), "%s", catalog.empty() ? "No textures are registered for this slot." : "No matching textures.");
+				im::TextColored(ToVec4(Color::TextFaint), "%s", catalog.empty() ? TR("RMA_NoTexturesSlot", "No textures are registered for this slot.") : TR("RMA_NoMatchingTextures", "No matching textures."));
 			}
 			const float rowH = im::GetTextLineHeightWithSpacing();
 			auto*       clipper = ImGuiMCP::ImGuiListClipperManager::Create();
@@ -1540,13 +1536,13 @@ namespace RMA::UI
 			const float half = (im::GetContentRegionAvail().x - u * 0.3f) * 0.5f;
 			const bool  changed = Text::Lower(e->texture) != Text::Lower(s.textureFrom);
 			im::BeginDisabled(!changed);
-			if (W::Button("##revert", Icon::Undo, "Revert", { half, 0.0f })) {
+			if (W::Button("##revert", Icon::Undo, TR("RMA_Revert", "Revert"), { half, 0.0f })) {
 				ApplyTexture(a_model, *e, s.textureFrom);
 				s.textureScroll = true;
 			}
 			im::EndDisabled();
 			im::SameLine(0.0f, u * 0.3f);
-			if (W::Button("##close", Icon::Check, "Done", { half, 0.0f }, true) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Enter, false)) {
+			if (W::Button("##close", Icon::Check, TR("RMA_Done", "Done"), { half, 0.0f }, true) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Enter, false)) {
 				im::CloseCurrentPopup();
 			}
 			im::EndPopup();
@@ -1575,7 +1571,7 @@ namespace RMA::UI
 			}
 			im::TextColored(ToVec4(Color::GoldBright), "%s", e->label.c_str());
 			im::SameLine(im::GetContentRegionMax().x - im::GetFrameHeight());
-			if (W::IconButton("##close", Icon::Close, "Close") || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false)) {
+			if (W::IconButton("##close", Icon::Close, TR("RMA_Close", "Close")) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false)) {
 				im::CloseCurrentPopup();
 			}
 
@@ -1591,13 +1587,13 @@ namespace RMA::UI
 				im::SetKeyboardFocusHere();
 			}
 			im::SetNextItemWidth(im::GetContentRegionAvail().x * 0.55f);
-			im::InputTextWithHint("##search", "Search by name, number or plugin", s.headPartSearch, sizeof(s.headPartSearch));
+			im::InputTextWithHint("##search", TR("RMA_SearchParts", "Search by name, number or plugin"), s.headPartSearch, sizeof(s.headPartSearch));
 			im::SameLine();
 			im::SetNextItemWidth(-1.0f);
-			const auto pluginLabel = s.headPartPlugin.empty() ? std::format("All plugins ({})", plugins.size()) : s.headPartPlugin;
+			const auto pluginLabel = s.headPartPlugin.empty() ? Strings::Format(TR("RMA_AllPluginsN", "All plugins ({0})"), plugins.size()) : s.headPartPlugin;
 			if (im::BeginCombo("##plugin", pluginLabel.c_str())) {
 				ApplyFont();
-				if (im::Selectable("All plugins", s.headPartPlugin.empty())) {
+				if (im::Selectable(TR("RMA_AllPlugins", "All plugins"), s.headPartPlugin.empty())) {
 					s.headPartPlugin.clear();
 				}
 				for (const auto& plugin : plugins) {
@@ -1616,9 +1612,9 @@ namespace RMA::UI
 				}
 			}
 			if (!a_model.headPartsLoaded) {
-				im::TextColored(ToVec4(Color::TextDim), "Reading the parts from RaceMenu...");
+				im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_ReadingParts", "Reading the parts from RaceMenu..."));
 			} else {
-				im::TextColored(ToVec4(Color::TextFaint), "%zu of %zu parts", shown.size(), a_model.headParts.size());
+				im::TextColored(ToVec4(Color::TextFaint), "%s", Strings::Format(TR("RMA_PartsCount", "{0} of {1} parts"), shown.size(), a_model.headParts.size()).c_str());
 			}
 
 			BeginFlatList("##parts", { 0.0f, 0.0f });
@@ -1704,7 +1700,7 @@ namespace RMA::UI
 			if (a_up) { *a_up = true; }
 			if (a_confirmFocused) { *a_confirmFocused = confirmFocused; }
 			im::SameLine();
-			const bool cancelled = W::Button("##cancel", Icon::Close, "Cancel", { u * 9.0f, u * 1.8f }) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false) ||
+			const bool cancelled = W::Button("##cancel", Icon::Close, TR("RMA_Cancel", "Cancel"), { u * 9.0f, u * 1.8f }) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false) ||
 			                       im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadFaceRight, false);
 			const bool cancelFocused = im::IsItemFocused();
 			// 1.0.1 (the owner, 2026-10-27: on the controller A did not press Finish): A is read here directly, not only
@@ -1739,27 +1735,29 @@ namespace RMA::UI
 			auto&       st = Settings::Get();
 			const float u = U();
 			bool        save = false;
-			W::SectionTitle("SLIDERS");
-			save |= im::Checkbox("Hide body sliders of the other body type", &st.sexFilter);
-			save |= im::Checkbox("Group related sliders under headers", &st.groupHeaders);
-			save |= im::Checkbox("Show RaceMenu's technical slider names", &st.showTechnicalNames);
-			save |= im::Checkbox("Typed values may exceed custom body morph ranges", &st.overdrive);
-			W::SectionTitle("INTERFACE");
-			save |= im::Checkbox("Ask before finishing the character", &st.confirmDone);
-			save |= im::Checkbox("Controller X finishes the character, as in RaceMenu", &st.gamepadDone);
-			save |= im::Checkbox("Show the scene and presets panel", &st.sidePanel);
+			// each label carries a fixed ##id, so the widget keeps its identity whatever the language
+			const auto label = [](const char* a_text, const char* a_id) { return std::string(a_text) + a_id; };
+			W::SectionTitle(TR("RMA_OptSliders", "SLIDERS"));
+			save |= im::Checkbox(label(TR("RMA_OptSexFilter", "Hide body sliders of the other body type"), "##sexfilter").c_str(), &st.sexFilter);
+			save |= im::Checkbox(label(TR("RMA_OptGroupHeaders", "Group related sliders under headers"), "##groups").c_str(), &st.groupHeaders);
+			save |= im::Checkbox(label(TR("RMA_OptTechnicalNames", "Show RaceMenu's technical slider names"), "##technical").c_str(), &st.showTechnicalNames);
+			save |= im::Checkbox(label(TR("RMA_OptOverdrive", "Typed values may exceed custom body morph ranges"), "##overdrive").c_str(), &st.overdrive);
+			W::SectionTitle(TR("RMA_OptInterface", "INTERFACE"));
+			save |= im::Checkbox(label(TR("RMA_OptConfirmDone", "Ask before finishing the character"), "##confirmdone").c_str(), &st.confirmDone);
+			save |= im::Checkbox(label(TR("RMA_OptGamepadDone", "Controller X finishes the character, as in RaceMenu"), "##gamepaddone").c_str(), &st.gamepadDone);
+			save |= im::Checkbox(label(TR("RMA_OptSidePanel", "Show the scene and presets panel"), "##sidepanel").c_str(), &st.sidePanel);
 			im::SetNextItemWidth(u * 10.0f);
-			im::SliderFloat("Interface size", &st.uiScale, 0.7f, 1.6f, "%.2f");
+			im::SliderFloat(label(TR("RMA_OptUiScale", "Interface size"), "##uiscale").c_str(), &st.uiScale, 0.7f, 1.6f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();
 			im::SetNextItemWidth(u * 10.0f);
-			im::SliderFloat("Editor width", &st.editorWidth, 0.22f, 0.45f, "%.2f");
+			im::SliderFloat(label(TR("RMA_OptEditorWidth", "Editor width"), "##editorwidth").c_str(), &st.editorWidth, 0.22f, 0.45f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();
 			im::SetNextItemWidth(u * 10.0f);
-			im::SliderFloat("Drag rotation speed", &st.rotateSpeed, 0.1f, 1.0f, "%.2f");
+			im::SliderFloat(label(TR("RMA_OptRotateSpeed", "Drag rotation speed"), "##rotatespeed").c_str(), &st.rotateSpeed, 0.1f, 1.0f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();
 			im::Spacing();
 			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint,
-				std::format("{} switches to RaceMenu's own interface. Settings: Data\\SKSE\\Plugins\\RaceMenuAtelier.ini", KeyName(st.toggleKey)).c_str(), 0.75f);
+				Strings::Format(TR("RMA_OptFooter", "{0} switches to RaceMenu's own interface. Settings: Data\\SKSE\\Plugins\\RaceMenuAtelier.ini"), KeyName(st.toggleKey)).c_str(), 0.75f);
 			im::Dummy({ u * 20.0f, u * 0.9f });
 			if (save) {
 				st.Save();
@@ -1781,7 +1779,7 @@ namespace RMA::UI
 			std::string who = a_model.player.race;
 			if (a_model.player.sex >= 0) {
 				who += who.empty() ? "" : "  \xC2\xB7  ";
-				who += a_model.player.sex == 1 ? "Female" : "Male";
+				who += a_model.player.sex == 1 ? TR("RMA_Female", "Female") : TR("RMA_Male", "Male");
 			}
 			const auto whoSize = W::SmallTextSize(who.c_str(), 0.85f);
 			W::SmallText(list, { pos.x + width - whoSize.x, pos.y }, Color::TextDim, who.c_str(), 0.85f);
@@ -1792,12 +1790,12 @@ namespace RMA::UI
 			const float h = std::floor(u * 1.9f);
 			im::PushStyleVar(ImGuiMCP::ImGuiStyleVar_FramePadding, ImVec2{ u * 0.6f, (h - im::GetTextLineHeight()) * 0.5f });
 			im::SetNextItemWidth(width - doneW - u * 0.5f);
-			if (im::InputTextWithHint("##name", "Character name", s.name, sizeof(s.name))) {
+			if (im::InputTextWithHint("##name", TR("RMA_CharacterName", "Character name"), s.name, sizeof(s.name))) {
 				s.nameEdited = true;
 			}
 			im::PopStyleVar();
 			im::SameLine(0.0f, u * 0.5f);
-			if (W::Button("##done", Icon::Check, "Done", { doneW, h }, true)) {
+			if (W::Button("##done", Icon::Check, TR("RMA_Done", "Done"), { doneW, h }, true)) {
 				if (Settings::Get().confirmDone) {
 					s.openDone = true;
 				} else {
@@ -1805,7 +1803,7 @@ namespace RMA::UI
 				}
 			}
 			if (im::IsItemHovered()) {
-				W::Tooltip("Finish character creation (R)");
+				W::Tooltip(TR("RMA_DoneTip", "Finish character creation (R)"));
 			}
 		}
 
@@ -1815,14 +1813,14 @@ namespace RMA::UI
 			const float b = im::GetFrameHeight();
 			const float width = im::GetContentRegionAvail().x;
 
-			const auto undoTip = a_model.past.empty() ? std::string("Nothing to undo") : std::format("Undo ({} steps) - Ctrl+Z", a_model.past.size());
+			const auto undoTip = a_model.past.empty() ? std::string(TR("RMA_NothingUndo", "Nothing to undo")) : Strings::Format(TR("RMA_UndoN", "Undo ({0} steps) - Ctrl+Z"), a_model.past.size());
 			im::BeginDisabled(a_model.past.empty());
 			if (W::IconButton("##undo", Icon::Undo, undoTip.c_str())) {
 				a_model.Undo();
 			}
 			im::EndDisabled();
 			im::SameLine(0.0f, u * 0.25f);
-			const auto redoTip = a_model.future.empty() ? std::string("Nothing to redo") : std::format("Redo ({} steps) - Ctrl+Y", a_model.future.size());
+			const auto redoTip = a_model.future.empty() ? std::string(TR("RMA_NothingRedo", "Nothing to redo")) : Strings::Format(TR("RMA_RedoN", "Redo ({0} steps) - Ctrl+Y"), a_model.future.size());
 			im::BeginDisabled(a_model.future.empty());
 			if (W::IconButton("##redo", Icon::Redo, redoTip.c_str())) {
 				a_model.Redo();
@@ -1840,7 +1838,7 @@ namespace RMA::UI
 			im::PushStyleVar(ImGuiMCP::ImGuiStyleVar_FramePadding, ImVec2{ u * 1.9f, im::GetStyle()->FramePadding.y });
 			im::SetNextItemWidth(searchW);
 			im::SetNextItemAllowOverlap();
-			if (im::InputTextWithHint("##search", "Search every slider (Ctrl+F)", s.search, sizeof(s.search))) {
+			if (im::InputTextWithHint("##search", TR("RMA_SearchSliders", "Search every slider (Ctrl+F)"), s.search, sizeof(s.search))) {
 				s.scrollTop = true;
 			}
 			im::PopStyleVar();
@@ -1849,24 +1847,24 @@ namespace RMA::UI
 				im::SameLine(0.0f, 0.0f);
 				const auto after = im::GetCursorScreenPos();
 				im::SetCursorScreenPos({ searchPos.x + searchW - b, searchPos.y });
-				if (W::IconButton("##clear", Icon::Close, "Clear the search")) {
+				if (W::IconButton("##clear", Icon::Close, TR("RMA_ClearSearch", "Clear the search"))) {
 					s.search[0] = '\0';
 					s.scrollTop = true;
 				}
 				im::SetCursorScreenPos(after);
 			}
 			im::SameLine(searchPos.x - im::GetWindowPos().x + searchW + u * 0.5f);
-			if (W::IconButton("##changed", Icon::Filter, s.changedOnly ? "Showing changed sliders only" : "Show changed sliders only", s.changedOnly)) {
+			if (W::IconButton("##changed", Icon::Filter, s.changedOnly ? TR("RMA_ChangedOnlyOn", "Showing changed sliders only") : TR("RMA_ChangedOnlyOff", "Show changed sliders only"), s.changedOnly)) {
 				s.changedOnly = !s.changedOnly;
 				s.scrollTop = true;
 			}
 			im::SameLine(0.0f, u * 0.25f);
-			if (W::IconButton("##side", Icon::Columns, Settings::Get().sidePanel ? "Hide the scene panel" : "Show the scene panel", Settings::Get().sidePanel)) {
+			if (W::IconButton("##side", Icon::Columns, Settings::Get().sidePanel ? TR("RMA_HideScenePanel", "Hide the scene panel") : TR("RMA_ShowScenePanel", "Show the scene panel"), Settings::Get().sidePanel)) {
 				Settings::Get().sidePanel = !Settings::Get().sidePanel;
 				Settings::Get().Save();
 			}
 			im::SameLine(0.0f, u * 0.25f);
-			if (W::IconButton("##options", Icon::Gear, "Options")) {
+			if (W::IconButton("##options", Icon::Gear, TR("RMA_Options", "Options"))) {
 				im::OpenPopup("##options");
 			}
 			OptionsPopup();
@@ -1923,7 +1921,7 @@ namespace RMA::UI
 				return clicked;
 			};
 
-			if (entry("##all", Icon::Grid, "All", active == -1, s.changedTotal, Color::Gold)) {
+			if (entry("##all", Icon::Grid, TR("RMA_CategoryAll", "All"), active == -1, s.changedTotal, Color::Gold)) {
 				s.search[0] = '\0';
 				SelectCategory(nullptr);
 			}
@@ -1987,10 +1985,10 @@ namespace RMA::UI
 			const int   raceColumns = width >= g.u * 22.0f ? 3 : 2;
 
 			if (!a_model.hasData || s.items.empty()) {
-				const char* text = !a_model.hasData ? "Reading RaceMenu..." :
-				                   s.search[0]      ? "Nothing matches the search." :
-				                   s.changedOnly    ? "Nothing has been changed yet." :
-				                                      "This category is empty.";
+				const char* text = !a_model.hasData ? TR("RMA_ReadingRaceMenu", "Reading RaceMenu...") :
+				                   s.search[0]      ? TR("RMA_NoSearchMatch", "Nothing matches the search.") :
+				                   s.changedOnly    ? TR("RMA_NothingChanged", "Nothing has been changed yet.") :
+				                                      TR("RMA_CategoryEmpty", "This category is empty.");
 				im::TextColored(ToVec4(Color::TextDim), "%s", text);
 			}
 
@@ -2071,12 +2069,12 @@ namespace RMA::UI
 				const auto  text = W::Ellipsize(a_model.status, width - b * 1.5f);
 				W::SmallText(list, { pos.x, pos.y + (b - u * 0.85f) * 0.5f }, WithAlpha(Color::GoldBright, alpha), text.c_str(), 0.85f);
 			} else {
-				const auto text = std::format("{} shown  \xC2\xB7  {} changed", s.visibleRows, s.changedTotal);
+				const auto text = Strings::Format(TR("RMA_FooterCounts", "{0} shown  ·  {1} changed"), s.visibleRows, s.changedTotal);
 				W::SmallText(list, { pos.x, pos.y + (b - u * 0.85f) * 0.5f }, Color::TextFaint, text.c_str(), 0.85f);
 			}
 			im::SetCursorScreenPos({ pos.x + width - b, pos.y });
 			im::BeginDisabled(s.changedTotal == 0);
-			if (W::IconButton("##resetall", Icon::Refresh, "Reset every changed slider of this session")) {
+			if (W::IconButton("##resetall", Icon::Refresh, TR("RMA_ResetAllTip", "Reset every changed slider of this session"))) {
 				s.openResetAll = true;
 			}
 			im::EndDisabled();
@@ -2160,6 +2158,11 @@ namespace RMA::UI
 				Glyphs::Note(a_model.player.name);
 				Glyphs::Note(a_model.player.race);
 				Glyphs::Note(a_model.status);
+				// 1.1.0: Atelier's own text, now in the game's language
+				for (const char* own : { TR("RMA_Done", "Done"), TR("RMA_DoneTitle", "Finish character creation?"), TR("RMA_Presets", "Presets"),
+						 TR("RMA_CharacterName", "Character name"), TR("RMA_SearchSliders", "Search every slider (Ctrl+F)") }) {
+					Glyphs::Note(own);
+				}
 				for (const char* typed : { s.name, s.presetName, s.search, s.textureSearch, s.headPartSearch, s.bodySlideName }) {
 					Glyphs::Note(typed);
 				}
@@ -2209,13 +2212,13 @@ namespace RMA::UI
 			RenderFooter(a_model);
 
 			HeadPartBrowser(a_model);
-			ConfirmModal("##confirmdone", s.openDone, "Finish character creation?",
-				s.name[0] ? std::format("Your character will be named {}. RaceMenu can be opened again later with showracemenu.", s.name) :
-							"RaceMenu can be opened again later with showracemenu.",
-				"Finish", [] { Bridge::Done(s.name); }, &s.openDoneByPad, &s.doneConfirmOpen, &s.doneFinishFocused);
-			ConfirmModal("##confirmreset", s.openResetAll, "Reset every change?",
-				std::format("{} changed sliders, colours and textures return to how they were when RaceMenu opened. Race and sex stay as they are. This can be undone.", s.changedTotal),
-				"Reset", [&a_model] { a_model.ResetAll(); });
+			ConfirmModal("##confirmdone", s.openDone, TR("RMA_DoneTitle", "Finish character creation?"),
+				s.name[0] ? Strings::Format(TR("RMA_DoneTextNamed", "Your character will be named {0}. RaceMenu can be opened again later with showracemenu."), s.name) :
+							std::string(TR("RMA_DoneText", "RaceMenu can be opened again later with showracemenu.")),
+				TR("RMA_Finish", "Finish"), [] { Bridge::Done(s.name); }, &s.openDoneByPad, &s.doneConfirmOpen, &s.doneFinishFocused);
+			ConfirmModal("##confirmreset", s.openResetAll, TR("RMA_ResetTitle", "Reset every change?"),
+				Strings::Format(TR("RMA_ResetText", "{0} changed sliders, colours and textures return to how they were when RaceMenu opened. Race and sex stay as they are. This can be undone."), s.changedTotal),
+				TR("RMA_Reset", "Reset"), [&a_model] { a_model.ResetAll(); });
 			ColumnNavigation();
 			im::End();
 		}
@@ -2235,41 +2238,46 @@ namespace RMA::UI
 					Bridge::Rotate(a_dir * 110.0f * dt);
 				}
 			};
-			holdRotate("##rotl", Icon::RotateLeft, "Turn left (hold, or Q)", -1.0f);
+			holdRotate("##rotl", Icon::RotateLeft, TR("RMA_TurnLeft", "Turn left (hold, or Q)"), -1.0f);
 			im::SameLine(0.0f, u * 0.3f);
-			holdRotate("##rotr", Icon::RotateRight, "Turn right (hold, or E)", 1.0f);
+			holdRotate("##rotr", Icon::RotateRight, TR("RMA_TurnRight", "Turn right (hold, or E)"), 1.0f);
 			im::SameLine(0.0f, u * 0.3f);
-			if (W::IconButton("##zoom", a_model.zoomFace ? Icon::ZoomOut : Icon::ZoomIn, a_model.zoomFace ? "Show the whole body (Z, wheel)" : "Close-up on the face (Z, wheel)", false, b)) {
+			if (W::IconButton("##zoom", a_model.zoomFace ? Icon::ZoomOut : Icon::ZoomIn, a_model.zoomFace ? TR("RMA_ZoomOut", "Show the whole body (Z, wheel)") : TR("RMA_ZoomIn", "Close-up on the face (Z, wheel)"), false, b)) {
 				Bridge::Zoom(!a_model.zoomFace);
 			}
 			im::SameLine(0.0f, u * 0.3f);
-			if (W::IconButton("##light", a_model.lightOn ? Icon::Sun : Icon::Moon, a_model.lightOn ? "Turn RaceMenu's light off (L)" : "Turn RaceMenu's light on (L)", a_model.lightOn, b)) {
+			if (W::IconButton("##light", a_model.lightOn ? Icon::Sun : Icon::Moon, a_model.lightOn ? TR("RMA_LightOff", "Turn RaceMenu's light off (L)") : TR("RMA_LightOn", "Turn RaceMenu's light on (L)"), a_model.lightOn, b)) {
 				Bridge::SetLight(!a_model.lightOn);
 			}
 			im::SameLine(0.0f, u * 0.3f);
-			if (W::IconButton("##undress", Icon::Shirt, a_model.undressed ? "Put the equipment back on" : "Take the equipment off", a_model.undressed, b)) {
+			if (W::IconButton("##undress", Icon::Shirt, a_model.undressed ? TR("RMA_Dress", "Put the equipment back on") : TR("RMA_Undress", "Take the equipment off"), a_model.undressed, b)) {
 				Bridge::SetUndressed(!a_model.undressed);
 			}
 			im::SameLine(0.0f, u * 0.3f);
-			if (W::IconButton("##freeze", Icon::Snowflake, a_model.frozen ? "Let the character move again" : "Freeze the pose and the face", a_model.frozen, b)) {
+			if (W::IconButton("##freeze", Icon::Snowflake, a_model.frozen ? TR("RMA_Unfreeze", "Let the character move again") : TR("RMA_Freeze", "Freeze the pose and the face"), a_model.frozen, b)) {
 				Bridge::ToggleFreeze();
 			}
 
 			im::SetNextItemWidth(im::GetContentRegionAvail().x - b - u * 0.3f);
-			if (im::BeginCombo("##pose", "Play a pose")) {
+			if (im::BeginCombo("##pose", TR("RMA_PlayPose", "Play a pose"))) {
 				ApplyFont();
-				for (const auto& [event, label] : kPoses) {
-					if (im::Selectable(label)) {
-						Bridge::PlayPose(event);
+				const std::array<const char*, kPoses.size()> labels{ TR("RMA_PoseWave", "Wave"), TR("RMA_PoseApplaud", "Applaud"),
+					TR("RMA_PoseLaugh", "Laugh"), TR("RMA_PoseCower", "Cower"), TR("RMA_PoseDance", "Dance"),
+					TR("RMA_PoseHandsBehindBack", "Hands behind back"), TR("RMA_PoseGetAttention", "Get attention"), TR("RMA_PoseReadBook", "Read a book") };
+				for (std::size_t i = 0; i < kPoses.size(); ++i) {
+					im::PushID(static_cast<int>(i));
+					if (im::Selectable(labels[i])) {
+						Bridge::PlayPose(kPoses[i]);
 					}
+					im::PopID();
 				}
 				im::EndCombo();
 			}
 			im::SameLine(0.0f, u * 0.3f);
-			if (W::IconButton("##stoppose", Icon::Stop, "Back to the standing pose")) {
+			if (W::IconButton("##stoppose", Icon::Stop, TR("RMA_StopPose", "Back to the standing pose"))) {
 				Bridge::PlayPose("IdleForceDefaultState");
 			}
-			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, "Drag empty space to turn, mouse wheel to zoom", 0.75f);
+			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, TR("RMA_SceneHint", "Drag empty space to turn, mouse wheel to zoom"), 0.75f);
 			im::Dummy({ 1.0f, u * 0.85f });
 		}
 
@@ -2282,11 +2290,11 @@ namespace RMA::UI
 			}
 			const float saveW = u * 5.5f;
 			im::SetNextItemWidth(im::GetContentRegionAvail().x - saveW - u * 0.3f);
-			const bool enter = im::InputTextWithHint("##presetname", "New preset name", s.presetName, sizeof(s.presetName), ImGuiMCP::ImGuiInputTextFlags_EnterReturnsTrue);
+			const bool enter = im::InputTextWithHint("##presetname", TR("RMA_NewPresetName", "New preset name"), s.presetName, sizeof(s.presetName), ImGuiMCP::ImGuiInputTextFlags_EnterReturnsTrue);
 			im::SameLine(0.0f, u * 0.3f);
 			const bool valid = Bridge::IsSafePresetName(s.presetName);
 			im::BeginDisabled(!valid);
-			if (W::Button("##savepreset", Icon::Save, "Save", { saveW, 0.0f }) || (enter && valid)) {
+			if (W::Button("##savepreset", Icon::Save, TR("RMA_Save", "Save"), { saveW, 0.0f }) || (enter && valid)) {
 				Bridge::SavePreset(s.presetName);
 			}
 			im::EndDisabled();
@@ -2300,7 +2308,7 @@ namespace RMA::UI
 			BeginFlatList("##presets", { 0.0f, listH });
 			ApplyFont();
 			if (a_model.presetFiles.empty()) {
-				im::TextColored(ToVec4(Color::TextFaint), "No presets in SKSE\\Plugins\\CharGen\\Presets");
+				im::TextColored(ToVec4(Color::TextFaint), "%s", TR("RMA_NoPresets", "No presets in SKSE\\Plugins\\CharGen\\Presets"));
 			}
 			const float b = im::GetFrameHeight();
 			for (const auto& file : a_model.presetFiles) {
@@ -2329,7 +2337,7 @@ namespace RMA::UI
 				dl::AddText(list, { x, pos.y + (b - im::GetTextLineHeight()) * 0.5f }, unloadable ? Color::TextFaint : Color::Text, name.c_str());
 				im::SetCursorScreenPos({ pos.x + width - b * 2.0f - u * 0.2f, pos.y });
 				const bool infoOpen = s.presetInfoOpen == file;
-				if (W::IconButton("##info", Icon::Info, "What this preset uses", infoOpen)) {
+				if (W::IconButton("##info", Icon::Info, TR("RMA_PresetInfo", "What this preset uses"), infoOpen)) {
 					s.presetInfoOpen = infoOpen ? std::string{} : file;
 					if (!infoOpen && !a_model.presetInfo.contains(file)) {
 						Bridge::ReadPresetInfo(file);
@@ -2337,7 +2345,7 @@ namespace RMA::UI
 				}
 				im::SameLine(0.0f, u * 0.2f);
 				im::BeginDisabled(unloadable);
-				if (W::IconButton("##load", Icon::Folder, "Load this preset")) {
+				if (W::IconButton("##load", Icon::Folder, TR("RMA_LoadPresetTip", "Load this preset"))) {
 					s.loadPreset = file;
 					s.openLoadPreset = true;
 				}
@@ -2346,26 +2354,26 @@ namespace RMA::UI
 					const auto it = a_model.presetInfo.find(file);
 					im::Indent(u * 0.6f);
 					if (it == a_model.presetInfo.end() || !it->second.loaded) {
-						im::TextColored(ToVec4(Color::TextDim), "Reading...");
+						im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_Reading", "Reading..."));
 					} else if (!it->second.readable) {
-						im::TextColored(ToVec4(Color::TextDim), "Only .jslot presets can be inspected.");
+						im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_OnlyJslot", "Only .jslot presets can be inspected."));
 					} else {
 						const auto& info = it->second;
-						W::SectionTitle(std::format("MODS ({})", info.mods.size()).c_str());
+						W::SectionTitle(Strings::Format(TR("RMA_PresetMods", "MODS ({0})"), info.mods.size()).c_str());
 						for (const auto& mod : info.mods) {
 							const bool missing = std::ranges::find(info.missing, mod) != info.missing.end();
-							im::TextColored(ToVec4(missing ? Color::Danger : Color::TextDim), "%s%s", mod.c_str(), missing ? "  (missing)" : "");
+							im::TextColored(ToVec4(missing ? Color::Danger : Color::TextDim), "%s%s%s", mod.c_str(), missing ? "  " : "", missing ? TR("RMA_Missing", "(missing)") : "");
 						}
 						if (!info.headParts.empty()) {
-							W::SectionTitle(std::format("HEAD PARTS ({})", info.headParts.size()).c_str());
+							W::SectionTitle(Strings::Format(TR("RMA_PresetHeadParts", "HEAD PARTS ({0})"), info.headParts.size()).c_str());
 							for (const auto& part : info.headParts) {
 								im::TextColored(ToVec4(Color::TextDim), "%s", part.c_str());
 							}
 						}
 						if (!info.tints.empty()) {
-							W::SectionTitle(std::format("TINT TEXTURES ({})", info.tints.size()).c_str());
+							W::SectionTitle(Strings::Format(TR("RMA_PresetTints", "TINT TEXTURES ({0})"), info.tints.size()).c_str());
 							for (const auto& tint : info.tints) {
-								im::TextColored(ToVec4(Color::TextDim), "%s", tint.empty() ? "(default)" : Text::FileStem(tint).c_str());
+								im::TextColored(ToVec4(Color::TextDim), "%s", tint.empty() ? TR("RMA_DefaultParen", "(default)") : Text::FileStem(tint).c_str());
 								if (!tint.empty() && im::IsItemHovered() && im::BeginTooltip()) {
 									ApplyFont();
 									W::TextureImage(tint, { U() * 8.0f, U() * 8.0f });
@@ -2379,13 +2387,13 @@ namespace RMA::UI
 				im::PopID();
 			}
 			im::EndChild();
-			if (W::Button("##refreshpresets", Icon::Refresh, "Refresh the list", { 0.0f, 0.0f })) {
+			if (W::Button("##refreshpresets", Icon::Refresh, TR("RMA_RefreshList", "Refresh the list"), { 0.0f, 0.0f })) {
 				Bridge::ListPresets();
 			}
-			ConfirmModal("##confirmload", s.openLoadPreset, "Load this preset?",
-				std::format("{} replaces the current character. Loading a preset cannot be undone, so save the current look first if you want to keep it.",
+			ConfirmModal("##confirmload", s.openLoadPreset, TR("RMA_LoadTitle", "Load this preset?"),
+				Strings::Format(TR("RMA_LoadText", "{0} replaces the current character. Loading a preset cannot be undone, so save the current look first if you want to keep it."),
 					Text::FileStem(a_model.presetLabels.contains(s.loadPreset) ? a_model.presetLabels.at(s.loadPreset) : s.loadPreset)),
-				"Load", [] {
+				TR("RMA_Load", "Load"), [] {
 					Bridge::LoadPreset(s.loadPreset);
 					auto&             model = Model::Get();
 					std::scoped_lock lock(model.mutex);
@@ -2407,11 +2415,11 @@ namespace RMA::UI
 			}
 			const float exportW = u * 6.0f;
 			im::SetNextItemWidth(im::GetContentRegionAvail().x - exportW - u * 0.3f);
-			im::InputTextWithHint("##bsname", "BodySlide preset name", s.bodySlideName, sizeof(s.bodySlideName));
+			im::InputTextWithHint("##bsname", TR("RMA_BodySlideName", "BodySlide preset name"), s.bodySlideName, sizeof(s.bodySlideName));
 			im::SameLine(0.0f, u * 0.3f);
 			const bool valid = Bridge::IsSafePresetName(s.bodySlideName);
 			im::BeginDisabled(!valid);
-			if (W::Button("##export", Icon::Export, "Export", { exportW, 0.0f })) {
+			if (W::Button("##export", Icon::Export, TR("RMA_Export", "Export"), { exportW, 0.0f })) {
 				// RaceMenu's morph is BodySlide's zero-based value: 0 is the
 				// zeroed slider, 1 is 100%. Written to both small and big.
 				const std::string prefix = s.bodySlideHimbo ? "rsm_bodymorph_himbo" : "changemorphcbbe";
@@ -2425,7 +2433,7 @@ namespace RMA::UI
 				Bridge::ExportBodySlide(s.bodySlideHimbo, s.bodySlideName, std::move(sliders));
 			}
 			im::EndDisabled();
-			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, "Saved to CalienteTools\\BodySlide\\SliderPresets (MO2: Overwrite)", 0.75f);
+			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, TR("RMA_BodySlideHint", "Saved to CalienteTools\\BodySlide\\SliderPresets (MO2: Overwrite)"), 0.75f);
 			im::Dummy({ 1.0f, u * 0.85f });
 		}
 
@@ -2433,16 +2441,16 @@ namespace RMA::UI
 		{
 			const float u = U();
 			const float w = im::GetContentRegionAvail().x;
-			if (W::Button("##native", Icon::Wrench, std::format("RaceMenu's own interface ({})", KeyName(Settings::Get().toggleKey)).c_str(), { w, 0.0f })) {
+			if (W::Button("##native", Icon::Wrench, Strings::Format(TR("RMA_NativeButton", "RaceMenu's own interface ({0})"), KeyName(Settings::Get().toggleKey)).c_str(), { w, 0.0f })) {
 				Bridge::EnterNative();
 			}
-			if (W::Button("##sculpt", Icon::Wand, "Sculpt the mesh", { w, 0.0f })) {
+			if (W::Button("##sculpt", Icon::Wand, TR("RMA_Sculpt", "Sculpt the mesh"), { w, 0.0f })) {
 				Bridge::EnterSculpt();
 			}
-			if (W::Button("##reread", Icon::Refresh, "Read the sliders again", { w, 0.0f })) {
+			if (W::Button("##reread", Icon::Refresh, TR("RMA_Reread", "Read the sliders again"), { w, 0.0f })) {
 				Bridge::RequestRefresh(0);
 			}
-			if (W::Button("##diag", Icon::Bug, "Write a diagnostic report", { w, 0.0f })) {
+			if (W::Button("##diag", Icon::Bug, TR("RMA_Diagnostics", "Write a diagnostic report"), { w, 0.0f })) {
 				Bridge::WriteDiagnostics();
 			}
 			im::Dummy({ 1.0f, u * 0.2f });
@@ -2459,7 +2467,7 @@ namespace RMA::UI
 				im::SetNextWindowSize({ b, b });
 				if (im::Begin(kSideTabWindow, nullptr, ImGuiMCP::ImGuiWindowFlags_NoDecoration | ImGuiMCP::ImGuiWindowFlags_NoMove | ImGuiMCP::ImGuiWindowFlags_NoSavedSettings)) {
 					ApplyFont();
-					if (W::IconButton("##open", Icon::Columns, "Show the scene and presets panel", false, std::floor(U() * 2.0f))) {
+					if (W::IconButton("##open", Icon::Columns, TR("RMA_ShowSidePanel", "Show the scene and presets panel"), false, std::floor(U() * 2.0f))) {
 						Settings::Get().sidePanel = true;
 						Settings::Get().Save();
 					}
@@ -2480,24 +2488,24 @@ namespace RMA::UI
 			ApplyFont();
 			const float u = U();
 			const auto  pos = im::GetCursorScreenPos();
-			W::SmallText(im::GetWindowDrawList(), pos, Color::Gold, "SCENE & PRESETS", 0.85f);
+			W::SmallText(im::GetWindowDrawList(), pos, Color::Gold, TR("RMA_SidePanelTitle", "SCENE & PRESETS"), 0.85f);
 			im::SetCursorScreenPos({ pos.x + im::GetContentRegionAvail().x - u * 1.2f, pos.y - u * 0.15f });
-			if (W::IconButton("##hide", Icon::Close, "Hide this panel", false, u * 1.2f)) {
+			if (W::IconButton("##hide", Icon::Close, TR("RMA_HidePanel", "Hide this panel"), false, u * 1.2f)) {
 				Settings::Get().sidePanel = false;
 				Settings::Get().Save();
 			}
 			im::SetCursorScreenPos({ pos.x, pos.y + u * 1.2f });
 
-			if (W::Collapsible("##scene", Icon::Person, "Scene", s.sceneOpen)) {
+			if (W::Collapsible("##scene", Icon::Person, TR("RMA_Scene", "Scene"), s.sceneOpen)) {
 				SceneSection(a_model);
 			}
-			if (W::Collapsible("##presets", Icon::Folder, "Presets", s.presetsOpen)) {
+			if (W::Collapsible("##presets", Icon::Folder, TR("RMA_Presets", "Presets"), s.presetsOpen)) {
 				PresetsSection(a_model);
 			}
-			if (W::Collapsible("##bodyslide", Icon::Export, "BodySlide export", s.bodySlideOpen)) {
+			if (W::Collapsible("##bodyslide", Icon::Export, TR("RMA_BodySlideExport", "BodySlide export"), s.bodySlideOpen)) {
 				BodySlideSection(a_model);
 			}
-			if (W::Collapsible("##tools", Icon::Wrench, "RaceMenu tools", s.toolsOpen)) {
+			if (W::Collapsible("##tools", Icon::Wrench, TR("RMA_RaceMenuTools", "RaceMenu tools"), s.toolsOpen)) {
 				ToolsSection();
 			}
 			im::End();
@@ -2781,9 +2789,9 @@ namespace RMA::UI
 			if (model.yieldCount == 0) {
 				const auto key = KeyName(Settings::Get().toggleKey);
 				if (model.mode == Mode::Native) {
-					DrawBanner(Icon::Wrench, std::format("RaceMenu's own interface  -  press {} to return to the Atelier", key));
+					DrawBanner(Icon::Wrench, Strings::Format(TR("RMA_BannerNative", "RaceMenu's own interface  -  press {0} to return to the Atelier"), key));
 				} else if (model.mode == Mode::Sculpt) {
-					DrawBanner(Icon::Wand, std::format("Sculpting  -  press {} to return to the Atelier", key));
+					DrawBanner(Icon::Wand, Strings::Format(TR("RMA_BannerSculpt", "Sculpting  -  press {0} to return to the Atelier"), key));
 				}
 			}
 		}

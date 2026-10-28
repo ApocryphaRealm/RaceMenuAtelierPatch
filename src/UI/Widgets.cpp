@@ -1,6 +1,7 @@
 #include "UI/Widgets.h"
 
 #include "Preview.h"
+#include "Strings.h"
 
 namespace RMA::UI::Widgets
 {
@@ -207,7 +208,7 @@ namespace RMA::UI::Widgets
 		const auto* image = Preview::Get(a_path);
 		if (!image) {
 			dl::AddRectFilled(list, pos, pos + a_size, Color::Track, Round(U() * 0.2f), 0);
-			const char* text = a_path.empty() ? "no texture" : "no preview";
+			const char* text = a_path.empty() ? TR("RMA_NoTexture", "no texture") : TR("RMA_NoPreview", "no preview");
 			const auto  size = SmallTextSize(text);
 			SmallText(list, pos + ImVec2{ (a_size.x - size.x) * 0.5f, (a_size.y - size.y) * 0.5f }, Color::TextFaint, text);
 			return;

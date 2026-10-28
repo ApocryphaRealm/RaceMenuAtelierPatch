@@ -1,6 +1,7 @@
 #include "Model.h"
 
 #include "Bridge.h"
+#include "Strings.h"
 
 #include <Windows.h>
 
@@ -566,10 +567,12 @@ namespace RMA
 		lightOn = true;
 		yieldCount = 0;
 		status.clear();
+		statusEnglish.clear();
 	}
 
-	void Model::SetStatus(std::string a_text)
+	void Model::SetStatus(std::string a_text, std::string a_english)
 	{
+		statusEnglish = a_english.empty() ? a_text : std::move(a_english);
 		status = std::move(a_text);
 		statusTime = Text::Now();
 	}
@@ -656,7 +659,8 @@ namespace RMA
 	void Model::ChangeRace(const Entry& a_entry)
 	{
 		Bridge::ChangeRace(a_entry.raceID);
-		SetStatus("Changing race to " + a_entry.label + "...");
+		const char* text = TR("RMA_StatusChangingRace", "Changing race to {0}...");
+		SetStatus(Strings::Format(text, a_entry.label), Strings::Format(Strings::English(text), a_entry.label));
 	}
 
 	// A choice goes through the menu's own item-press handler, which the mod that added the list owns; its
@@ -665,7 +669,8 @@ namespace RMA
 	{
 		Bridge::PressEntry(a_entry.Ref());
 		chosen[a_entry.filterFlag] = a_entry.key;
-		SetStatus("Chose " + a_entry.label);
+		const char* text = TR("RMA_StatusChose", "Chose {0}");
+		SetStatus(Strings::Format(text, a_entry.label), Strings::Format(Strings::English(text), a_entry.label));
 	}
 
 	bool Model::IsCurrentChoice(const Entry& a_entry) const

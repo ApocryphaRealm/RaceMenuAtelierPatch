@@ -208,6 +208,7 @@ namespace RMA
 		std::vector<HeadPart>                              headParts;
 		bool                                               headPartsLoaded{ false };
 		std::string                                        status;
+		std::string                                        statusEnglish;  // 1.1.0: the same line in English, for the log and DevBench
 		double                                             statusTime{ 0.0 };
 
 		// history
@@ -218,7 +219,7 @@ namespace RMA
 		void ApplySnapshot(Snapshot&& a_snapshot);
 		void ApplyPlayer(PlayerInfo&& a_player);
 		void ResetSession();
-		void SetStatus(std::string a_text);
+		void SetStatus(std::string a_text, std::string a_english = {});
 
 		// --- editing (lock held; dispatches to the game) ---
 		Entry*       Find(const std::string& a_key);

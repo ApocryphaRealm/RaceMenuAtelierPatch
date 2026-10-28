@@ -1,6 +1,7 @@
 #include "Bridge.h"
 #include "DevBenchTool.h"
 #include "Settings.h"
+#include "Strings.h"
 #include "UI/Theme.h"
 #include "UI/UI.h"
 #include "utils/AddressLibraryGuard.h"
@@ -37,6 +38,7 @@ namespace
 			RMA::DevBenchTool::Init(false);
 			break;
 		case SKSE::MessagingInterface::kDataLoaded:
+			RMA::Strings::Load();  // 1.1.0: Atelier's own text in the game's language
 			if (RMA::UI::IsRegistered()) {
 				RMA::Bridge::Install();
 			}

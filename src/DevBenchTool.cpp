@@ -3,6 +3,7 @@
 #include "Bridge.h"
 #include "DevBench/DevBenchAPI.h"
 #include "Model.h"
+#include "Strings.h"
 #include "UI/Glyphs.h"
 #include "UI/UI.h"
 
@@ -73,7 +74,9 @@ namespace RMA::DevBenchTool
 				{ "picked", model.picked },
 				{ "categories", std::move(categories) },
 				{ "choices", std::move(choices) },
-				{ "status", model.status },
+				{ "status", model.statusEnglish },  // English whatever the game's language (rule 66: a tool's text)
+				{ "status_shown", model.status },
+				{ "text_language", Strings::Language() },
 			};
 		}
 
