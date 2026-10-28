@@ -29,6 +29,10 @@ namespace RMA::Strings
 	// the language that was loaded ("english" until Load has run)
 	[[nodiscard]] std::string Language();
 
+	// DevBench (atelier.control op=language): show the text in another shipped language for this session without changing
+	// the game's ("" = back to the game's sLanguage). Text handed out before stays valid. Returns the keys read.
+	std::size_t SetLanguage(std::string_view a_language);
+
 	namespace detail
 	{
 		inline std::string ToText(const std::string& a_v) { return a_v; }

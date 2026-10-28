@@ -156,6 +156,11 @@ namespace RMA::DevBenchTool
 					Bridge::SavePreset(name);
 				}
 				out = { { "ok", valid }, { "name", name } };
+			} else if (op == "language") {
+				// 1.1.0: name=<english|japanese|korean|chinese|russian|german|french|spanish|italian|polish|czech> shows
+				// Atelier's own text in that language for this session (empty = the game's sLanguage); the game is untouched
+				const auto keys = Strings::SetLanguage(name);
+				out = { { "ok", keys > 0 }, { "text_language", Strings::Language() }, { "keys", keys }, { "sample", Strings::Get("RMA_DoneTitle", "Finish character creation?") } };
 			} else if (op == "pad_done") {
 				// the Done confirmation opened the way controller X opens it (applied on the editor's next frame); read
 				// done_confirm_open / done_finish_focused with op=state a frame later
@@ -193,7 +198,9 @@ namespace RMA::DevBenchTool
 			"op=refresh - re-read RaceMenu; op=glyphs - letters the menu font cannot draw (framework, missing characters and "
 			"glyph sets, the notice, one probe per script); op=set_text field=name|preset|search|bodyslide text=<UTF-8> - put "
 			"text in a field as if typed; op=typed field=<field> - read it back; op=presets - the preset list as shown; "
-			"op=save_preset name=<UTF-8> - save the character as a preset.\","
+			"op=save_preset name=<UTF-8> - save the character as a preset; op=pad_done - open the Finish confirmation as "
+			"controller X does; op=language name=<language, empty = the game's> - Atelier's own text in another shipped "
+			"language for this session.\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
 			"\"field\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"}}},"
 			"\"readOnly\":false"

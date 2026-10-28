@@ -27,7 +27,9 @@ namespace RMA::Strings
 		std::string g_language = "english";
 		Table       g_localized;
 		Table       g_englishFile;
-		std::unordered_map<std::string, Entry, Hash, std::equal_to<>> g_entries;  // node-based: an entry never moves
+		using Entries = std::unordered_map<std::string, Entry, Hash, std::equal_to<>>;  // node-based: an entry never moves
+		Entries                               g_entries;
+		std::vector<std::unique_ptr<Entries>> g_retired;  // entries of a language switched away from, kept so their text stays valid
 		std::unordered_map<const char*, const char*>                  g_englishOf;  // text handed out -> its English
 
 		// one translation file; empty (and logged) when it is missing or not UTF-16LE with a BOM
@@ -121,6 +123,24 @@ namespace RMA::Strings
 		const auto [it, inserted] = g_entries.emplace(std::string(a_key), std::move(entry));
 		g_englishOf[it->second.text.c_str()] = it->second.english.c_str();
 		return it->second.text.c_str();
+	}
+
+	std::size_t SetLanguage(std::string_view a_language)
+	{
+		std::string language = a_language.empty() ? Text::GameLanguage() : Text::Lower(a_language);
+		auto        localized = language == "english" ? Table{} : ReadFile(language);
+		std::scoped_lock lock(g_lock);
+		if (language == "english") {
+			localized = g_englishFile;
+		}
+		const auto count = localized.size();
+		g_retired.push_back(std::make_unique<Entries>(std::move(g_entries)));
+		g_entries = Entries{};
+		g_language = std::move(language);
+		g_localized = std::move(localized);
+		g_loaded = true;
+		logger::info("text language set to {} by DevBench ({} localized key(s))", g_language, count);
+		return count;
 	}
 
 	const char* English(const char* a_text)
