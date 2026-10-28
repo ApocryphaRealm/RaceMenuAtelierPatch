@@ -18,6 +18,47 @@ namespace RMA::UI
 		namespace dl = ImGuiMCP::ImDrawListManager;
 		namespace W = Widgets;
 
+		// 1.1.0 (combined run 52ee, 2026-10-27): the editor's text drawing goes through these, so the missing-letter check
+		// (UI/Glyphs.h) counts exactly the text a frame draws. They forward unchanged.
+		namespace Drawn
+		{
+			inline void NoteArg(const char* a_text) { Glyphs::Note(a_text ? a_text : ""); }
+			template <class T>
+			inline void NoteArg(const T&)
+			{}
+
+			inline void AddText(ImGuiMCP::ImDrawList* a_list, ImVec2 a_pos, ImU32 a_color, const char* a_text)
+			{
+				NoteArg(a_text);
+				dl::AddText(a_list, a_pos, a_color, a_text);
+			}
+
+			template <class... Args>
+			inline void TextColored(ImVec4 a_color, const char* a_format, Args... a_args)
+			{
+				(NoteArg(a_args), ...);
+				im::TextColored(a_color, a_format, a_args...);
+			}
+
+			inline bool Selectable(const char* a_label, bool a_selected = false, ImGuiMCP::ImGuiSelectableFlags a_flags = 0, ImVec2 a_size = { 0.0f, 0.0f })
+			{
+				NoteArg(a_label);
+				return im::Selectable(a_label, a_selected, a_flags, a_size);
+			}
+
+			inline bool InputTextWithHint(const char* a_id, const char* a_hint, char* a_buf, std::size_t a_size, ImGuiMCP::ImGuiInputTextFlags a_flags = 0)
+			{
+				NoteArg(a_buf && *a_buf ? a_buf : a_hint);  // the hint shows only while the field is empty
+				return im::InputTextWithHint(a_id, a_hint, a_buf, a_size, a_flags);
+			}
+
+			inline bool BeginCombo(const char* a_id, const char* a_preview)
+			{
+				NoteArg(a_preview);
+				return im::BeginCombo(a_id, a_preview);
+			}
+		}
+
 		constexpr auto kEditorWindow = "RaceMenu Atelier##RMA.Editor";
 		constexpr auto kSideWindow = "Scene##RMA.Side";
 		constexpr auto kSideTabWindow = "SceneTab##RMA.SideTab";
@@ -200,6 +241,12 @@ namespace RMA::UI
 			std::string devbenchText;
 			bool        devbenchTextPending{ false };
 			bool        openResetAll{ false };
+			// DevBench (1.1.0, op=nudge): an options slider to highlight and step (written under the model lock)
+			std::string nudgeName;
+			int         nudgeDir{ 0 };
+			int         nudgeCount{ 1 };
+			bool        nudgePending{ false };
+			std::string nudgeResult{ "null" };
 			std::string loadPreset;
 			bool        openLoadPreset{ false };
 
@@ -778,7 +825,7 @@ namespace RMA::UI
 		{
 			const auto  text = W::Ellipsize(DisplayLabel(a_entry, a_item.shortLabel), a_maxWidth);
 			const auto  size = im::CalcTextSize(text.c_str());
-			dl::AddText(a_list, a_pos, a_changed ? Color::GoldBright : Color::Text, text.c_str());
+			Drawn::AddText(a_list, a_pos, a_changed ? Color::GoldBright : Color::Text, text.c_str());
 			if (a_entry.custom && size.x + U() * 3.5f < a_maxWidth && !Settings::Get().showTechnicalNames) {
 				W::SmallText(a_list, a_pos + ImVec2{ size.x + U() * 0.45f, U() * 0.14f }, Color::TextFaint, TR("RMA_TagCustom", "custom"), 0.72f);
 			}
@@ -839,7 +886,7 @@ namespace RMA::UI
 				}
 				const bool hovered = im::IsItemHovered();
 				const bool outside = a_entry.position < a_entry.min - 1e-9 || a_entry.position > a_entry.max + 1e-9;
-				dl::AddText(list, { valueX, lineY }, outside ? Color::Danger : hovered ? Color::GoldBright : a_changed ? Color::Gold : Color::Value, valueText.c_str());
+				Drawn::AddText(list, { valueX, lineY }, outside ? Color::Danger : hovered ? Color::GoldBright : a_changed ? Color::Gold : Color::Value, valueText.c_str());
 				if (hovered) {
 					W::Tooltip(a_entry.canOverdrive && Settings::Get().overdrive ? TR("RMA_TypeValueOverdrive", "Click to type a value (overdrive: may exceed the range)") :
 				                                                                   TR("RMA_TypeValue", "Click to type a value"));
@@ -983,7 +1030,7 @@ namespace RMA::UI
 			}
 			main = W::Ellipsize(main, boxW - counterSize.x - g.u * 1.5f);
 			const auto mainSize = im::CalcTextSize(main.c_str());
-			dl::AddText(list, { boxX + g.u * 0.6f, ctrlY + (g.ctrl - mainSize.y) * 0.5f }, a_changed ? Color::GoldBright : Color::Text, main.c_str());
+			Drawn::AddText(list, { boxX + g.u * 0.6f, ctrlY + (g.ctrl - mainSize.y) * 0.5f }, a_changed ? Color::GoldBright : Color::Text, main.c_str());
 			if (clicked && headPart) {
 				OpenHeadPartBrowser(a_entry);
 			}
@@ -1044,7 +1091,7 @@ namespace RMA::UI
 			DrawIcon(list, pos + ImVec2{ g.u * 0.8f, g.ctrl * 0.5f }, Icon::Brush, Color::Gold);
 			const auto text = W::Ellipsize(stem, width - g.u * 3.5f);
 			const auto ts = im::CalcTextSize(text.c_str());
-			dl::AddText(list, pos + ImVec2{ g.u * 1.6f, (g.ctrl - ts.y) * 0.5f }, a_changed ? Color::GoldBright : Color::Text, text.c_str());
+			Drawn::AddText(list, pos + ImVec2{ g.u * 1.6f, (g.ctrl - ts.y) * 0.5f }, a_changed ? Color::GoldBright : Color::Text, text.c_str());
 			DrawIcon(list, pos + ImVec2{ width - g.u * 0.8f, g.ctrl * 0.5f }, Icon::ChevronDown, Color::TextFaint);
 			if (clicked) {
 				s.textureKey = a_entry.key;
@@ -1141,7 +1188,7 @@ namespace RMA::UI
 				}
 				const auto name = W::Ellipsize(e.label, max.x - textX - u * 0.4f);
 				const auto ns = im::CalcTextSize(name.c_str());
-				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
+				Drawn::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
 				if (hovered) {
 					const auto tip = current ? std::string(TR("RMA_CurrentRace", "Current race")) : Strings::Format(TR("RMA_ChangeRaceTo", "Change the race to {0}"), e.label);
 					W::Tooltip(tip.c_str());
@@ -1199,7 +1246,7 @@ namespace RMA::UI
 				}
 				const auto name = W::Ellipsize(e.label, max.x - textX - u * 0.4f);
 				const auto ns = im::CalcTextSize(name.c_str());
-				dl::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
+				Drawn::AddText(list, { textX, pos.y + (a_cardH - ns.y) * 0.5f }, current ? Color::GoldBright : hovered ? Color::Text : Color::TileText, name.c_str());
 				if (hovered) {
 					const auto tip = e.description.empty() ? (current ? std::string(TR("RMA_Chosen", "Chosen")) : Strings::Format(TR("RMA_ChooseX", "Choose {0}"), e.label)) :
 				                                          e.label + "\n\n" + e.description;
@@ -1244,28 +1291,28 @@ namespace RMA::UI
 				im::EndPopup();
 				return;
 			}
-			im::TextColored(ToVec4(Color::Gold), "%s", e->label.c_str());
+			Drawn::TextColored(ToVec4(Color::Gold), "%s", e->label.c_str());
 			im::Separator();
 			im::BeginDisabled(!e->IsChanged());
-			if (im::Selectable(TR("RMA_ResetToStart", "Reset to the starting value"))) {
+			if (Drawn::Selectable(TR("RMA_ResetToStart", "Reset to the starting value"))) {
 				a_model.ResetEntry(*e);
 			}
 			im::EndDisabled();
-			if (e->control == Control::Slider && im::Selectable(TR("RMA_TypeAValue", "Type a value"))) {
+			if (e->control == Control::Slider && Drawn::Selectable(TR("RMA_TypeAValue", "Type a value"))) {
 				s.editKey = e->key;
 				s.editValue = e->position;
 				s.editGrace = 4;
 			}
-			if (e->control == Control::Slider && e->min < 0.0 && e->max > 0.0 && im::Selectable(TR("RMA_SetZero", "Set to zero"))) {
+			if (e->control == Control::Slider && e->min < 0.0 && e->max > 0.0 && Drawn::Selectable(TR("RMA_SetZero", "Set to zero"))) {
 				CommitValue(a_model, *e, 0.0);
 			}
 			if (e->hasColor || e->control == Control::Paint) {
-				if (im::Selectable(TR("RMA_EditColour", "Edit colour"))) {
+				if (Drawn::Selectable(TR("RMA_EditColour", "Edit colour"))) {
 					s.colorKey = e->key;
 					s.openColor = true;
 				}
 			}
-			if (e->callback == "ChangeHeadPart" && im::Selectable(TR("RMA_BrowsePartsShort", "Browse parts"))) {
+			if (e->callback == "ChangeHeadPart" && Drawn::Selectable(TR("RMA_BrowsePartsShort", "Browse parts"))) {
 				OpenHeadPartBrowser(*e);
 			}
 			im::Separator();
@@ -1329,7 +1376,7 @@ namespace RMA::UI
 				return;
 			}
 			const float u = U();
-			im::TextColored(ToVec4(Color::Gold), "%s", e->label.c_str());
+			Drawn::TextColored(ToVec4(Color::Gold), "%s", e->label.c_str());
 
 			const auto toArgb = [](const float c[4]) {
 				const auto ch = [](float v) { return static_cast<std::uint32_t>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f)); };
@@ -1449,12 +1496,12 @@ namespace RMA::UI
 			ApplyFont();
 			auto* e = a_model.Find(s.textureKey);
 			if (!e || e->listType < 0 || e->listType >= static_cast<int>(a_model.makeup.size())) {
-				im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_NoTexturesSlot", "No textures are registered for this slot."));
+				Drawn::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_NoTexturesSlot", "No textures are registered for this slot."));
 				im::EndPopup();
 				return;
 			}
 			const auto& catalog = a_model.makeup[e->listType];
-			im::TextColored(ToVec4(Color::GoldBright), "%s", e->label.c_str());
+			Drawn::TextColored(ToVec4(Color::GoldBright), "%s", e->label.c_str());
 			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint, TR("RMA_TextureHint", "Click or use the arrow keys - the character updates at once"), 0.75f);
 			im::Dummy({ 1.0f, U() * 0.85f });
 
@@ -1462,7 +1509,7 @@ namespace RMA::UI
 				im::SetKeyboardFocusHere();
 			}
 			im::SetNextItemWidth(-1.0f);
-			if (im::InputTextWithHint("##search", TR("RMA_SearchTextures", "Search textures (kept between openings)"), s.textureSearch, sizeof(s.textureSearch))) {
+			if (Drawn::InputTextWithHint("##search", TR("RMA_SearchTextures", "Search textures (kept between openings)"), s.textureSearch, sizeof(s.textureSearch))) {
 				s.textureScroll = true;
 			}
 			const auto query = Text::Lower(s.textureSearch);
@@ -1493,7 +1540,7 @@ namespace RMA::UI
 			BeginFlatList("##list", { 0.0f, -footerH });
 			ApplyFont();
 			if (shown.empty()) {
-				im::TextColored(ToVec4(Color::TextFaint), "%s", catalog.empty() ? TR("RMA_NoTexturesSlot", "No textures are registered for this slot.") : TR("RMA_NoMatchingTextures", "No matching textures."));
+				Drawn::TextColored(ToVec4(Color::TextFaint), "%s", catalog.empty() ? TR("RMA_NoTexturesSlot", "No textures are registered for this slot.") : TR("RMA_NoMatchingTextures", "No matching textures."));
 			}
 			const float rowH = im::GetTextLineHeightWithSpacing();
 			auto*       clipper = ImGuiMCP::ImGuiListClipperManager::Create();
@@ -1510,7 +1557,7 @@ namespace RMA::UI
 						const auto pos = im::GetCursorScreenPos();
 						dl::AddRectFilled(im::GetWindowDrawList(), pos, pos + ImVec2{ std::max(3.0f, std::floor(U() * 0.16f)), rowH - im::GetStyle()->ItemSpacing.y }, Color::Gold, 0.0f, 0);
 					}
-					if (im::Selectable(tex.label.c_str(), current, ImGuiMCP::ImGuiSelectableFlags_DontClosePopups)) {
+					if (Drawn::Selectable(tex.label.c_str(), current, ImGuiMCP::ImGuiSelectableFlags_DontClosePopups)) {
 						ApplyTexture(a_model, *e, tex.texture);
 					}
 					if (current && s.textureScroll) {
@@ -1570,7 +1617,7 @@ namespace RMA::UI
 				im::EndPopup();
 				return;
 			}
-			im::TextColored(ToVec4(Color::GoldBright), "%s", e->label.c_str());
+			Drawn::TextColored(ToVec4(Color::GoldBright), "%s", e->label.c_str());
 			im::SameLine(im::GetContentRegionMax().x - im::GetFrameHeight());
 			if (W::IconButton("##close", Icon::Close, TR("RMA_Close", "Close")) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_Escape, false)) {
 				im::CloseCurrentPopup();
@@ -1588,17 +1635,17 @@ namespace RMA::UI
 				im::SetKeyboardFocusHere();
 			}
 			im::SetNextItemWidth(im::GetContentRegionAvail().x * 0.55f);
-			im::InputTextWithHint("##search", TR("RMA_SearchParts", "Search by name, number or plugin"), s.headPartSearch, sizeof(s.headPartSearch));
+			Drawn::InputTextWithHint("##search", TR("RMA_SearchParts", "Search by name, number or plugin"), s.headPartSearch, sizeof(s.headPartSearch));
 			im::SameLine();
 			im::SetNextItemWidth(-1.0f);
 			const auto pluginLabel = s.headPartPlugin.empty() ? Strings::Format(TR("RMA_AllPluginsN", "All plugins ({0})"), plugins.size()) : s.headPartPlugin;
-			if (im::BeginCombo("##plugin", pluginLabel.c_str())) {
+			if (Drawn::BeginCombo("##plugin", pluginLabel.c_str())) {
 				ApplyFont();
-				if (im::Selectable(TR("RMA_AllPlugins", "All plugins"), s.headPartPlugin.empty())) {
+				if (Drawn::Selectable(TR("RMA_AllPlugins", "All plugins"), s.headPartPlugin.empty())) {
 					s.headPartPlugin.clear();
 				}
 				for (const auto& plugin : plugins) {
-					if (im::Selectable(plugin.c_str(), plugin == s.headPartPlugin)) {
+					if (Drawn::Selectable(plugin.c_str(), plugin == s.headPartPlugin)) {
 						s.headPartPlugin = plugin;
 					}
 				}
@@ -1613,9 +1660,9 @@ namespace RMA::UI
 				}
 			}
 			if (!a_model.headPartsLoaded) {
-				im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_ReadingParts", "Reading the parts from RaceMenu..."));
+				Drawn::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_ReadingParts", "Reading the parts from RaceMenu..."));
 			} else {
-				im::TextColored(ToVec4(Color::TextFaint), "%s", Strings::Format(TR("RMA_PartsCount", "{0} of {1} parts"), shown.size(), a_model.headParts.size()).c_str());
+				Drawn::TextColored(ToVec4(Color::TextFaint), "%s", Strings::Format(TR("RMA_PartsCount", "{0} of {1} parts"), shown.size(), a_model.headParts.size()).c_str());
 			}
 
 			BeginFlatList("##parts", { 0.0f, 0.0f });
@@ -1631,7 +1678,7 @@ namespace RMA::UI
 					const auto  pos = im::GetCursorScreenPos();
 					const float width = im::GetContentRegionAvail().x;
 					const bool  isCurrent = part.index == current;
-					if (im::Selectable("##part", isCurrent, 0, { width, rowH - im::GetStyle()->ItemSpacing.y })) {
+					if (Drawn::Selectable("##part", isCurrent, 0, { width, rowH - im::GetStyle()->ItemSpacing.y })) {
 						if (!isCurrent) {
 							CommitValue(a_model, *e, static_cast<double>(part.index));
 						}
@@ -1642,7 +1689,7 @@ namespace RMA::UI
 					W::SmallText(list, { pos.x + uu * 0.4f, ty + uu * 0.1f }, Color::TextFaint, std::format("#{}", part.index).c_str(), 0.8f);
 					const auto pluginSize = W::SmallTextSize(part.plugin.c_str(), 0.8f);
 					const auto label = W::Ellipsize(part.label.empty() ? part.name : part.label, width - pluginSize.x - uu * 5.0f);
-					dl::AddText(list, { pos.x + uu * 3.0f, ty }, isCurrent ? Color::GoldBright : Color::Text, label.c_str());
+					Drawn::AddText(list, { pos.x + uu * 3.0f, ty }, isCurrent ? Color::GoldBright : Color::Text, label.c_str());
 					W::SmallText(list, { pos.x + width - pluginSize.x - uu * 0.5f, ty + uu * 0.1f }, Color::TextFaint, part.plugin.c_str(), 0.8f);
 					if (im::IsItemHovered() && part.label != part.name) {
 						W::Tooltip(part.name.c_str());
@@ -1681,10 +1728,10 @@ namespace RMA::UI
 			}
 			ApplyFont();
 			const float u = U();
-			im::TextColored(ToVec4(Color::GoldBright), "%s", a_title);
+			Drawn::TextColored(ToVec4(Color::GoldBright), "%s", a_title);
 			im::Spacing();
 			im::PushTextWrapPos(u * 24.0f);
-			im::TextColored(ToVec4(Color::TextDim), "%s", a_text.c_str());
+			Drawn::TextColored(ToVec4(Color::TextDim), "%s", a_text.c_str());
 			im::PopTextWrapPos();
 			im::Spacing();
 			im::Spacing();
@@ -1727,6 +1774,54 @@ namespace RMA::UI
 			im::EndPopup();
 		}
 
+		// An options slider ("%.2f", so one unit is 0.01). Dragged or typed it is a precise slider (rule 68). Focused and not
+		// held, Left/Right (keyboard navigation) and D-pad left/right step it by one unit each press - repeating while held -
+		// itself: ImGui only moves a slider by keys once it has been activated, so in keyboard navigation an arrow on the
+		// highlighted slider did nothing (combined run 52ee, 2026-10-27: Interface size stayed 1.00). DevBench op=nudge
+		// drives the same step. Returns true when the value should be saved.
+		bool OptionSlider(const char* a_label, const char* a_id, float* a_value, float a_min, float a_max)
+		{
+			constexpr double step = 0.01;
+			const auto       full = std::string(a_label) + "##" + a_id;
+			Glyphs::Note(a_label);
+			precise::SliderFloat(full.c_str(), a_value, a_min, a_max, "%.2f");
+			bool save = im::IsItemDeactivatedAfterEdit();
+			int  dir = 0;
+			int  times = 1;
+			if (im::IsItemFocused() && !im::IsItemActive()) {
+				const auto id = im::GetItemID();
+				for (const auto key : { ImGuiMCP::ImGuiKey_LeftArrow, ImGuiMCP::ImGuiKey_RightArrow, ImGuiMCP::ImGuiKey_GamepadDpadLeft, ImGuiMCP::ImGuiKey_GamepadDpadRight }) {
+					im::SetKeyOwner(key, id, 0);
+				}
+				if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow, true) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadDpadRight, true)) {
+					dir = 1;
+				} else if (im::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow, true) || im::IsKeyPressed(ImGuiMCP::ImGuiKey_GamepadDpadLeft, true)) {
+					dir = -1;
+				}
+			}
+			const bool bench = s.nudgePending && s.nudgeName == a_id;
+			if (bench) {
+				NavHere();  // the highlight on the slider, as a player would have it
+				dir = s.nudgeDir;
+				times = s.nudgeCount;
+				s.nudgePending = false;
+			}
+			if (dir != 0) {
+				const float before = *a_value;
+				double      v = before;
+				for (int i = 0; i < times; ++i) {
+					v = std::clamp(std::round((v + dir * step) / step) * step, static_cast<double>(a_min), static_cast<double>(a_max));
+				}
+				*a_value = static_cast<float>(v);
+				save = true;
+				logger::info("options slider {} nudged {} x{}: {:.2f} -> {:.2f}{}", a_id, dir > 0 ? "up" : "down", times, before, *a_value, bench ? " (DevBench)" : "");
+				if (bench) {
+					s.nudgeResult = std::format(R"({{"name":"{}","dir":{},"count":{},"before":{:.2f},"after":{:.2f}}})", a_id, dir, times, before, *a_value);
+				}
+			}
+			return save;
+		}
+
 		void OptionsPopup()
 		{
 			if (!im::BeginPopup("##options")) {
@@ -1748,14 +1843,11 @@ namespace RMA::UI
 			save |= W::Toggle(label(TR("RMA_OptGamepadDone", "Controller X finishes the character, as in RaceMenu"), "##gamepaddone").c_str(), &st.gamepadDone);
 			save |= W::Toggle(label(TR("RMA_OptSidePanel", "Show the scene and presets panel"), "##sidepanel").c_str(), &st.sidePanel);
 			im::SetNextItemWidth(u * 10.0f);
-			precise::SliderFloat(label(TR("RMA_OptUiScale", "Interface size"), "##uiscale").c_str(), &st.uiScale, 0.7f, 1.6f, "%.2f");
-			save |= im::IsItemDeactivatedAfterEdit();
+			save |= OptionSlider(TR("RMA_OptUiScale", "Interface size"), "uiscale", &st.uiScale, 0.7f, 1.6f);
 			im::SetNextItemWidth(u * 10.0f);
-			precise::SliderFloat(label(TR("RMA_OptEditorWidth", "Editor width"), "##editorwidth").c_str(), &st.editorWidth, 0.22f, 0.45f, "%.2f");
-			save |= im::IsItemDeactivatedAfterEdit();
+			save |= OptionSlider(TR("RMA_OptEditorWidth", "Editor width"), "editorwidth", &st.editorWidth, 0.22f, 0.45f);
 			im::SetNextItemWidth(u * 10.0f);
-			precise::SliderFloat(label(TR("RMA_OptRotateSpeed", "Drag rotation speed"), "##rotatespeed").c_str(), &st.rotateSpeed, 0.1f, 1.0f, "%.2f");
-			save |= im::IsItemDeactivatedAfterEdit();
+			save |= OptionSlider(TR("RMA_OptRotateSpeed", "Drag rotation speed"), "rotatespeed", &st.rotateSpeed, 0.1f, 1.0f);
 			im::Spacing();
 			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint,
 				Strings::Format(TR("RMA_OptFooter", "{0} switches to RaceMenu's own interface. Settings: Data\\SKSE\\Plugins\\RaceMenuAtelier.ini"), KeyName(st.toggleKey)).c_str(), 0.75f);
@@ -1791,7 +1883,7 @@ namespace RMA::UI
 			const float h = std::floor(u * 1.9f);
 			im::PushStyleVar(ImGuiMCP::ImGuiStyleVar_FramePadding, ImVec2{ u * 0.6f, (h - im::GetTextLineHeight()) * 0.5f });
 			im::SetNextItemWidth(width - doneW - u * 0.5f);
-			if (im::InputTextWithHint("##name", TR("RMA_CharacterName", "Character name"), s.name, sizeof(s.name))) {
+			if (Drawn::InputTextWithHint("##name", TR("RMA_CharacterName", "Character name"), s.name, sizeof(s.name))) {
 				s.nameEdited = true;
 			}
 			im::PopStyleVar();
@@ -1839,7 +1931,7 @@ namespace RMA::UI
 			im::PushStyleVar(ImGuiMCP::ImGuiStyleVar_FramePadding, ImVec2{ u * 1.9f, im::GetStyle()->FramePadding.y });
 			im::SetNextItemWidth(searchW);
 			im::SetNextItemAllowOverlap();
-			if (im::InputTextWithHint("##search", TR("RMA_SearchSliders", "Search every slider (Ctrl+F)"), s.search, sizeof(s.search))) {
+			if (Drawn::InputTextWithHint("##search", TR("RMA_SearchSliders", "Search every slider (Ctrl+F)"), s.search, sizeof(s.search))) {
 				s.scrollTop = true;
 			}
 			im::PopStyleVar();
@@ -1867,6 +1959,9 @@ namespace RMA::UI
 			im::SameLine(0.0f, u * 0.25f);
 			if (W::IconButton("##options", Icon::Gear, TR("RMA_Options", "Options"))) {
 				im::OpenPopup("##options");
+			}
+			if (s.nudgePending && !im::IsPopupOpen("##options", 0)) {
+				im::OpenPopup("##options");  // DevBench op=nudge: the slider is nudged inside the open options
 			}
 			OptionsPopup();
 		}
@@ -1912,7 +2007,7 @@ namespace RMA::UI
 				const float dotSpace = a_changed > 0 ? u * 0.8f : 0.0f;
 				const auto  label = W::Ellipsize(a_label, width - u * 2.2f - dotSpace);
 				const auto  ls = im::CalcTextSize(label.c_str());
-				dl::AddText(list, pos + ImVec2{ u * 1.85f, (h - ls.y) * 0.5f }, a_selected ? Color::Text : hovered ? Color::Text : Color::TextDim, label.c_str());
+				Drawn::AddText(list, pos + ImVec2{ u * 1.85f, (h - ls.y) * 0.5f }, a_selected ? Color::Text : hovered ? Color::Text : Color::TextDim, label.c_str());
 				if (a_changed > 0) {
 					dl::AddCircleFilled(list, pos + ImVec2{ width - u * 0.45f, h * 0.5f }, u * 0.16f, Color::Gold, 12);
 				}
@@ -1990,7 +2085,7 @@ namespace RMA::UI
 				                   s.search[0]      ? TR("RMA_NoSearchMatch", "Nothing matches the search.") :
 				                   s.changedOnly    ? TR("RMA_NothingChanged", "Nothing has been changed yet.") :
 				                                      TR("RMA_CategoryEmpty", "This category is empty.");
-				im::TextColored(ToVec4(Color::TextDim), "%s", text);
+				Drawn::TextColored(ToVec4(Color::TextDim), "%s", text);
 			}
 
 			const float scroll = im::GetScrollY();
@@ -2023,7 +2118,7 @@ namespace RMA::UI
 							const ImVec2 tab{ pos.x, pos.y + headerH - tabH - g.u * 0.05f };
 							dl::AddRectFilled(list, tab, tab + ImVec2{ ts.x + g.u * 1.2f, tabH }, WithAlpha(item.hue, 0.18f), Round(g.u * 0.25f), 0);
 							dl::AddRectFilled(list, tab, tab + ImVec2{ std::max(3.0f, std::floor(g.u * 0.16f)), tabH }, item.hue, Round(g.u * 0.25f), ImGuiMCP::ImDrawFlags_RoundCornersLeft);
-							dl::AddText(list, tab + ImVec2{ g.u * 0.65f, (tabH - ts.y) * 0.5f }, item.hue, item.group.c_str());
+							Drawn::AddText(list, tab + ImVec2{ g.u * 0.65f, (tabH - ts.y) * 0.5f }, item.hue, item.group.c_str());
 							const float ly = std::floor(tab.y + tabH * 0.5f);
 							dl::AddLine(list, { tab.x + ts.x + g.u * 1.6f, ly }, { pos.x + width, ly }, WithAlpha(item.hue, 0.35f), 1.0f);
 							break;
@@ -2129,52 +2224,6 @@ namespace RMA::UI
 			}
 		}
 
-		// 1.0.2: the text the editor shows, checked against the menu font twice a second (UI/Glyphs.h)
-		void GlyphCheck(const Model& a_model)
-		{
-			if (Glyphs::Due()) {
-				for (const auto& c : a_model.categories) {
-					Glyphs::Note(c.label);
-				}
-				for (const auto& e : a_model.entries) {
-					Glyphs::Note(e.label);
-					Glyphs::Note(e.text);
-					Glyphs::Note(e.description);
-				}
-				for (const auto& p : a_model.picked) {
-					Glyphs::Note(p);
-				}
-				// only the name the list draws: a file listed by a typed label keeps its ANSI-read key beside it, which is
-				// never drawn (combined run cbcb, 2026-10-27: that key's U+0081 / U+0090 counted as missing glyphs)
-				for (const auto& f : a_model.presetFiles) {
-					if (!a_model.presetLabels.contains(f)) {
-						Glyphs::Note(f);
-					}
-				}
-				for (const auto& [file, label] : a_model.presetLabels) {
-					Glyphs::Note(label);
-				}
-				for (const auto& [id, name] : a_model.partNames) {
-					Glyphs::Note(name);
-				}
-				for (const auto& h : a_model.headParts) {
-					Glyphs::Note(h.label);
-				}
-				Glyphs::Note(a_model.player.name);
-				Glyphs::Note(a_model.player.race);
-				Glyphs::Note(a_model.status);
-				// 1.1.0: Atelier's own text, now in the game's language
-				for (const char* own : { TR("RMA_Done", "Done"), TR("RMA_DoneTitle", "Finish character creation?"), TR("RMA_Presets", "Presets"),
-						 TR("RMA_CharacterName", "Character name"), TR("RMA_SearchSliders", "Search every slider (Ctrl+F)") }) {
-					Glyphs::Note(own);
-				}
-				for (const char* typed : { s.name, s.presetName, s.search, s.textureSearch, s.headPartSearch, s.bodySlideName }) {
-					Glyphs::Note(typed);
-				}
-			}
-			Glyphs::Check();
-		}
-
 		void RenderEditor(Model& a_model)
 		{
 			const auto* io = im::GetIO();
@@ -2199,11 +2248,10 @@ namespace RMA::UI
 			im::Dummy({ 1.0f, u * 0.15f });
 			RenderToolbar(a_model);
 			im::Dummy({ 1.0f, u * 0.1f });
-			GlyphCheck(a_model);
 			if (const auto& notice = Glyphs::Notice(); !notice.empty()) {
 				// 1.0.2: letters the menu font cannot draw (they show as '?') - which glyph set, and where to switch it on
 				im::PushTextWrapPos(0.0f);
-				im::TextColored(ToVec4(Color::GoldBright), "%s", notice.c_str());
+				im::TextColored(ToVec4(Color::GoldBright), "%s", notice.c_str());  // the notice is built drawable; not counted
 				im::PopTextWrapPos();
 				im::Dummy({ 1.0f, u * 0.1f });
 			}
@@ -2264,14 +2312,14 @@ namespace RMA::UI
 			}
 
 			im::SetNextItemWidth(im::GetContentRegionAvail().x - b - u * 0.3f);
-			if (im::BeginCombo("##pose", TR("RMA_PlayPose", "Play a pose"))) {
+			if (Drawn::BeginCombo("##pose", TR("RMA_PlayPose", "Play a pose"))) {
 				ApplyFont();
 				const std::array<const char*, kPoses.size()> labels{ TR("RMA_PoseWave", "Wave"), TR("RMA_PoseApplaud", "Applaud"),
 					TR("RMA_PoseLaugh", "Laugh"), TR("RMA_PoseCower", "Cower"), TR("RMA_PoseDance", "Dance"),
 					TR("RMA_PoseHandsBehindBack", "Hands behind back"), TR("RMA_PoseGetAttention", "Get attention"), TR("RMA_PoseReadBook", "Read a book") };
 				for (std::size_t i = 0; i < kPoses.size(); ++i) {
 					im::PushID(static_cast<int>(i));
-					if (im::Selectable(labels[i])) {
+					if (Drawn::Selectable(labels[i])) {
 						Bridge::PlayPose(kPoses[i]);
 					}
 					im::PopID();
@@ -2295,7 +2343,7 @@ namespace RMA::UI
 			}
 			const float saveW = u * 5.5f;
 			im::SetNextItemWidth(im::GetContentRegionAvail().x - saveW - u * 0.3f);
-			const bool enter = im::InputTextWithHint("##presetname", TR("RMA_NewPresetName", "New preset name"), s.presetName, sizeof(s.presetName), ImGuiMCP::ImGuiInputTextFlags_EnterReturnsTrue);
+			const bool enter = Drawn::InputTextWithHint("##presetname", TR("RMA_NewPresetName", "New preset name"), s.presetName, sizeof(s.presetName), ImGuiMCP::ImGuiInputTextFlags_EnterReturnsTrue);
 			im::SameLine(0.0f, u * 0.3f);
 			const bool valid = Bridge::IsSafePresetName(s.presetName);
 			im::BeginDisabled(!valid);
@@ -2313,7 +2361,7 @@ namespace RMA::UI
 			BeginFlatList("##presets", { 0.0f, listH });
 			ApplyFont();
 			if (a_model.presetFiles.empty()) {
-				im::TextColored(ToVec4(Color::TextFaint), "%s", TR("RMA_NoPresets", "No presets in SKSE\\Plugins\\CharGen\\Presets"));
+				Drawn::TextColored(ToVec4(Color::TextFaint), "%s", TR("RMA_NoPresets", "No presets in SKSE\\Plugins\\CharGen\\Presets"));
 			}
 			const float b = im::GetFrameHeight();
 			for (const auto& file : a_model.presetFiles) {
@@ -2339,7 +2387,7 @@ namespace RMA::UI
 					x += std::min(fs.x, textW * 0.4f);
 				}
 				const auto name = W::Ellipsize(stem, pos.x + u * 0.3f + textW - x);
-				dl::AddText(list, { x, pos.y + (b - im::GetTextLineHeight()) * 0.5f }, unloadable ? Color::TextFaint : Color::Text, name.c_str());
+				Drawn::AddText(list, { x, pos.y + (b - im::GetTextLineHeight()) * 0.5f }, unloadable ? Color::TextFaint : Color::Text, name.c_str());
 				im::SetCursorScreenPos({ pos.x + width - b * 2.0f - u * 0.2f, pos.y });
 				const bool infoOpen = s.presetInfoOpen == file;
 				if (W::IconButton("##info", Icon::Info, TR("RMA_PresetInfo", "What this preset uses"), infoOpen)) {
@@ -2359,26 +2407,26 @@ namespace RMA::UI
 					const auto it = a_model.presetInfo.find(file);
 					im::Indent(u * 0.6f);
 					if (it == a_model.presetInfo.end() || !it->second.loaded) {
-						im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_Reading", "Reading..."));
+						Drawn::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_Reading", "Reading..."));
 					} else if (!it->second.readable) {
-						im::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_OnlyJslot", "Only .jslot presets can be inspected."));
+						Drawn::TextColored(ToVec4(Color::TextDim), "%s", TR("RMA_OnlyJslot", "Only .jslot presets can be inspected."));
 					} else {
 						const auto& info = it->second;
 						W::SectionTitle(Strings::Format(TR("RMA_PresetMods", "MODS ({0})"), info.mods.size()).c_str());
 						for (const auto& mod : info.mods) {
 							const bool missing = std::ranges::find(info.missing, mod) != info.missing.end();
-							im::TextColored(ToVec4(missing ? Color::Danger : Color::TextDim), "%s%s%s", mod.c_str(), missing ? "  " : "", missing ? TR("RMA_Missing", "(missing)") : "");
+							Drawn::TextColored(ToVec4(missing ? Color::Danger : Color::TextDim), "%s%s%s", mod.c_str(), missing ? "  " : "", missing ? TR("RMA_Missing", "(missing)") : "");
 						}
 						if (!info.headParts.empty()) {
 							W::SectionTitle(Strings::Format(TR("RMA_PresetHeadParts", "HEAD PARTS ({0})"), info.headParts.size()).c_str());
 							for (const auto& part : info.headParts) {
-								im::TextColored(ToVec4(Color::TextDim), "%s", part.c_str());
+								Drawn::TextColored(ToVec4(Color::TextDim), "%s", part.c_str());
 							}
 						}
 						if (!info.tints.empty()) {
 							W::SectionTitle(Strings::Format(TR("RMA_PresetTints", "TINT TEXTURES ({0})"), info.tints.size()).c_str());
 							for (const auto& tint : info.tints) {
-								im::TextColored(ToVec4(Color::TextDim), "%s", tint.empty() ? TR("RMA_DefaultParen", "(default)") : Text::FileStem(tint).c_str());
+								Drawn::TextColored(ToVec4(Color::TextDim), "%s", tint.empty() ? TR("RMA_DefaultParen", "(default)") : Text::FileStem(tint).c_str());
 								if (!tint.empty() && im::IsItemHovered() && im::BeginTooltip()) {
 									ApplyFont();
 									W::TextureImage(tint, { U() * 8.0f, U() * 8.0f });
@@ -2420,7 +2468,7 @@ namespace RMA::UI
 			}
 			const float exportW = u * 6.0f;
 			im::SetNextItemWidth(im::GetContentRegionAvail().x - exportW - u * 0.3f);
-			im::InputTextWithHint("##bsname", TR("RMA_BodySlideName", "BodySlide preset name"), s.bodySlideName, sizeof(s.bodySlideName));
+			Drawn::InputTextWithHint("##bsname", TR("RMA_BodySlideName", "BodySlide preset name"), s.bodySlideName, sizeof(s.bodySlideName));
 			im::SameLine(0.0f, u * 0.3f);
 			const bool valid = Bridge::IsSafePresetName(s.bodySlideName);
 			im::BeginDisabled(!valid);
@@ -2722,6 +2770,30 @@ namespace RMA::UI
 		std::scoped_lock lock(model.mutex);
 		return a_field == "name" ? s.name : a_field == "preset" ? s.presetName : a_field == "search" ? s.search : a_field == "bodyslide" ? s.bodySlideName : "";
 	}
+	bool NudgeSlider(const std::string& a_name, int a_dir, int a_count)
+	{
+		if ((a_name != "uiscale" && a_name != "editorwidth" && a_name != "rotatespeed") || a_dir == 0) {
+			return false;
+		}
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		s.nudgeName = a_name;
+		s.nudgeDir = a_dir > 0 ? 1 : -1;
+		s.nudgeCount = std::clamp(a_count, 1, 100);
+		s.nudgePending = true;
+		s.nudgeResult = "null";
+		return true;
+	}
+
+	std::string Options()
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		const auto&      st = Settings::Get();
+		return std::format(R"({{"uiscale":{:.2f},"editorwidth":{:.2f},"rotatespeed":{:.2f},"nudge_pending":{},"last_nudge":{}}})",
+			st.uiScale, st.editorWidth, st.rotateSpeed, s.nudgePending ? "true" : "false", s.nudgeResult);
+	}
+
 	bool DoneConfirmOpen() { return s.doneConfirmOpen.load(); }
 	bool DoneFinishFocused() { return s.doneFinishFocused.load(); }
 
@@ -2739,12 +2811,14 @@ namespace RMA::UI
 			ApplyDevBenchText();
 			BuildItems(model);
 
+			Glyphs::BeginFrame();  // 1.1.0: the check counts what this frame draws
 			PushStyle();
 			HandleHotkeys(model);
 			RenderEditor(model);
 			RenderSidePanel(model);
 			HandleSceneMouse(model);
 			W::FlushFocusMark();
+			Glyphs::Check();
 			PopStyle();
 		}
 
@@ -2764,6 +2838,7 @@ namespace RMA::UI
 			PushIconFont();
 			dl::AddText(list, im::GetFont(), u, min + ImVec2{ u * 0.9f, (h - u) * 0.5f }, Color::Gold, a_icon);
 			PopIconFont();
+			Glyphs::Note(a_text);
 			dl::AddText(list, im::GetFont(), u, min + ImVec2{ u * 2.2f, (h - text.y) * 0.5f }, Color::Text, a_text.c_str());
 		}
 

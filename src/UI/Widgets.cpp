@@ -1,6 +1,7 @@
 #include "UI/Widgets.h"
 
 #include "Preview.h"
+#include "UI/Glyphs.h"
 #include "Strings.h"
 
 namespace RMA::UI::Widgets
@@ -51,6 +52,7 @@ namespace RMA::UI::Widgets
 		}
 		if (im::BeginTooltip()) {
 			ApplyFont();
+			Glyphs::Note(a_text);
 			im::PushTextWrapPos(U() * 22.0f);
 			im::TextUnformatted(a_text);
 			im::PopTextWrapPos();
@@ -140,6 +142,7 @@ namespace RMA::UI::Widgets
 			x += iconSize.x + gap;
 		}
 		if (a_label && *a_label) {
+			Glyphs::Note(a_label);
 			dl::AddText(list, { x, pos.y + (size.y - labelSize.y) * 0.5f }, fg, a_label);
 		}
 		return pressed;
@@ -172,6 +175,7 @@ namespace RMA::UI::Widgets
 			const auto       hash = label.find("##");
 			const auto       visible = hash == std::string_view::npos ? label : label.substr(0, hash);
 			if (!visible.empty()) {
+				Glyphs::Note(visible);
 				im::SameLine();
 				im::AlignTextToFramePadding();
 				im::TextUnformatted(visible.data(), visible.data() + visible.size());
@@ -210,6 +214,7 @@ namespace RMA::UI::Widgets
 			DrawIcon(list, pos + ImVec2{ u * 1.0f, height * 0.5f }, a_icon, Color::Gold);
 		}
 		const auto labelSize = im::CalcTextSize(a_label);
+		Glyphs::Note(a_label ? a_label : "");
 		dl::AddText(list, pos + ImVec2{ u * 2.0f, (height - labelSize.y) * 0.5f }, hovered ? Color::Text : Color::TextDim, a_label);
 		DrawIcon(list, pos + ImVec2{ width - u * 0.9f, height * 0.5f }, a_open ? Icon::ChevronUp : Icon::ChevronDown, Color::TextFaint);
 		return a_open;
@@ -336,6 +341,7 @@ namespace RMA::UI::Widgets
 
 	void SmallText(ImGuiMCP::ImDrawList* a_list, ImVec2 a_pos, ImU32 a_color, const char* a_text, float a_scale)
 	{
+		Glyphs::Note(a_text ? a_text : "");
 		dl::AddText(a_list, im::GetFont(), im::GetFontSize() * a_scale, a_pos, a_color, a_text);
 	}
 

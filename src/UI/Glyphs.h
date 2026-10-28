@@ -21,13 +21,18 @@
 // DevBench tool reads is copied under a lock.
 namespace RMA::UI::Glyphs
 {
-	// a check is due this frame (twice a second): only then is the text collected
-	[[nodiscard]] bool Due();
+	// 1.1.0 (combined run 52ee, 2026-10-27): only text DRAWN in the checked frame counts. The draw helpers (Widgets, and
+	// the Drawn wrappers in UI.cpp) note what they draw; a text no frame draws - a dialog that is not open, a category not
+	// shown - is never counted, and nothing carries over from one check to the next (so a language switched away from
+	// leaves nothing behind).
 
-	// collects the text the editor shows this frame
+	// at the start of the editor's frame: decides whether this frame is checked (twice a second)
+	void BeginFrame();
+
+	// a text drawn this frame (ignored unless the frame is checked)
 	void Note(std::string_view a_text);
 
-	// once per frame inside the editor window, after the Note calls: checks new characters against the current font
+	// at the end of the editor's frame: checks the characters drawn this frame against the menu font
 	void Check();
 
 	// the notice to draw above the categories ("" = none)

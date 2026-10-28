@@ -138,12 +138,12 @@ namespace RMA::UI::Glyphs
 		}
 
 		// render thread
-		std::vector<char32_t>   g_pending;          // characters noted this frame
+		std::vector<char32_t>   g_pending;          // characters drawn in the frame being checked
 		std::vector<bool>       g_seenFlag(0x10000, false);
-		std::vector<char32_t>   g_seen;             // every non-ASCII character the editor has shown
+		std::vector<char32_t>   g_seen;             // the non-ASCII characters the last checked frame drew
 		std::vector<char32_t>   g_missing;          // ... that the font has no glyph for
-		const void*             g_font = nullptr;   // the font the last check used
 		double                  g_lastCheck = -1.0;
+		bool                    g_due = false;      // this frame is checked
 		double                  g_missingSince = -1.0;
 		std::uint32_t           g_noticeScripts = 0;  // the scripts the shown notice names
 		std::string             g_notice;
@@ -245,6 +245,9 @@ namespace RMA::UI::Glyphs
 
 	void Note(std::string_view a_text)
 	{
+		if (!g_due) {
+			return;
+		}
 		ForEachCodepoint(a_text, [](char32_t c) {
 			if (c == 0xFFFD) {
 				if (!g_broken) {
@@ -253,14 +256,14 @@ namespace RMA::UI::Glyphs
 				}
 				return;
 			}
-			if (c <= 0xFFFF && !g_seenFlag[c] && g_seen.size() + g_pending.size() < kMaxSeen) {
+			if (c <= 0xFFFF && !g_seenFlag[c] && g_pending.size() < kMaxSeen) {
 				g_seenFlag[c] = true;  // claimed now so a frame notes it once; checked in Check()
 				g_pending.push_back(c);
 			}
 		});
 	}
 
-	bool Due() { return Text::Now() - g_lastCheck >= kCheckEvery; }
+	void BeginFrame() { g_due = Text::Now() - g_lastCheck >= kCheckEvery; }
 
 	void Check()
 	{
@@ -270,35 +273,33 @@ namespace RMA::UI::Glyphs
 			g_framework = DetectFramework();
 			logger::info("menu framework hosting the editor: {}", FrameworkName(g_framework));
 		}
-		if (now - g_lastCheck < kCheckEvery) {
+		if (!g_due) {
 			return;
 		}
+		g_due = false;
 		g_lastCheck = now;
 		auto* font = im::GetFont();
 		if (!font) {
+			for (const auto c : g_pending) {
+				g_seenFlag[c] = false;
+			}
+			g_pending.clear();
 			return;
 		}
-		if (font != g_font) {
-			// a new font (a font or size change in the framework): every character is checked again
-			g_font = font;
-			g_missing.clear();
-			g_pending.insert(g_pending.end(), g_seen.begin(), g_seen.end());
-			g_seen.clear();
-		}
-		// characters missing earlier may have been added since (AMF adds them on demand)
-		const auto before = g_missing.size();
-		std::erase_if(g_missing, [&](char32_t c) { return HasGlyph(font, c); });
-		const bool recovered = g_missing.size() < before;
+		// this frame's characters only: what an earlier frame drew and this one does not is no longer counted
 		const bool japanese = Text::GameLanguage() == "japanese";
 		std::uint32_t newlyMissing = 0;
+		g_seen.clear();
+		g_missing.clear();
 		for (const auto c : g_pending) {
+			g_seenFlag[c] = false;
 			g_seen.push_back(c);
 			if (!HasGlyph(font, c)) {
 				g_missing.push_back(c);
 				newlyMissing |= ScriptOf(c, japanese);
 			}
 		}
-		const bool changed = !g_pending.empty() || recovered;
+		const bool changed = !g_pending.empty();
 		g_pending.clear();
 		if (newlyMissing) {
 			static std::uint32_t logged = 0;

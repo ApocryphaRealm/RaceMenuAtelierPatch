@@ -20,5 +20,11 @@ namespace RMA::UI
 	// DevBench (1.0.2): put text into a field as if typed - "name", "preset", "search" or "bodyslide" - on the next frame,
 	// and read a field back; lock-safe
 	bool          SetText(const std::string& a_field, const std::string& a_text);
+
+	// DevBench (1.1.0, op=nudge): open the options, highlight an options slider ("uiscale", "editorwidth", "rotatespeed")
+	// and step it a_count units (0.01 each) in a_dir, exactly as Left/Right on it does - next frame; lock-safe
+	bool          NudgeSlider(const std::string& a_name, int a_dir, int a_count);
+	// the three option values and the last DevBench nudge (JSON)
+	[[nodiscard]] std::string Options();
 	[[nodiscard]] std::string TypedText(const std::string& a_field);
 }

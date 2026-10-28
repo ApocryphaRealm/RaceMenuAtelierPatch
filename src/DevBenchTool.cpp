@@ -156,6 +156,19 @@ namespace RMA::DevBenchTool
 					Bridge::SavePreset(name);
 				}
 				out = { { "ok", valid }, { "name", name } };
+			} else if (op == "nudge") {
+				// 1.1.0: name=uiscale|editorwidth|rotatespeed dir=1|-1 count=N - open the options, highlight that slider and
+				// step it N units as Left/Right on it do (next frame); read the values back with op=options
+				const int dir = args.value("dir", 1);
+				const int count = args.value("count", 1);
+				out = { { "ok", UI::NudgeSlider(name, dir, count) }, { "name", name }, { "note", "applied on the next frame - read op=options" } };
+			} else if (op == "options") {
+				out = json::parse(UI::Options(), nullptr, false);
+				if (out.is_discarded()) {
+					out = { { "ok", false } };
+				} else {
+					out["ok"] = true;
+				}
 			} else if (op == "language") {
 				// 1.1.0: name=<english|japanese|korean|chinese|russian|german|french|spanish|italian|polish|czech> shows
 				// Atelier's own text in that language for this session (empty = the game's sLanguage); the game is untouched
@@ -200,9 +213,10 @@ namespace RMA::DevBenchTool
 			"text in a field as if typed; op=typed field=<field> - read it back; op=presets - the preset list as shown; "
 			"op=save_preset name=<UTF-8> - save the character as a preset; op=pad_done - open the Finish confirmation as "
 			"controller X does; op=language name=<language, empty = the game's> - Atelier's own text in another shipped "
-			"language for this session.\","
+			"language for this session; op=nudge name=uiscale|editorwidth|rotatespeed dir=1|-1 count=N - open the options, "
+			"highlight that slider and step it N units of 0.01; op=options - the three option values and the last nudge.\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
-			"\"field\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"}}},"
+			"\"field\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"},\"dir\":{\"type\":\"integer\"},\"count\":{\"type\":\"integer\"}}},"
 			"\"readOnly\":false"
 			"}";
 		if (devBench->RegisterTool("atelier.control", descriptor, &Tool, nullptr)) {
