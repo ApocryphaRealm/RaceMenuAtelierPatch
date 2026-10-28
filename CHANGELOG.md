@@ -14,6 +14,7 @@ version gate only once a build is seen working in game (rule 48).
 
 ### Changed
 - The options' on/off settings (hide the other body type's sliders, group headers, technical names, overdrive, ask before finishing, controller X finishes, the scene panel) are switches instead of tick-boxes, as on every settings page of ours (rule 32).
+- The options' three sliders (interface size, editor width, drag rotation speed) are precise sliders: a D-pad or arrow-key nudge moves them by one unit of the shown digit (0.01), not 1% of the range, and a typed value is kept inside the range (rule 68).
 
 ### Fixed
 - A disabled button now looks disabled. Atelier draws its own buttons, and ImGui's dimming of a disabled item never reached them, so the Load button of a preset RaceMenu cannot open (and Undo with nothing to undo, Save with no valid name) looked as ready as the others while doing nothing (combined run cbcb, 2026-10-27).

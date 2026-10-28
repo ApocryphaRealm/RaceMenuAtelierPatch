@@ -6,6 +6,7 @@
 #include "Settings.h"
 #include "Strings.h"
 #include "UI/Glyphs.h"
+#include "UI/PreciseSlider.h"
 #include "UI/Theme.h"
 #include "UI/Widgets.h"
 
@@ -1747,13 +1748,13 @@ namespace RMA::UI
 			save |= W::Toggle(label(TR("RMA_OptGamepadDone", "Controller X finishes the character, as in RaceMenu"), "##gamepaddone").c_str(), &st.gamepadDone);
 			save |= W::Toggle(label(TR("RMA_OptSidePanel", "Show the scene and presets panel"), "##sidepanel").c_str(), &st.sidePanel);
 			im::SetNextItemWidth(u * 10.0f);
-			im::SliderFloat(label(TR("RMA_OptUiScale", "Interface size"), "##uiscale").c_str(), &st.uiScale, 0.7f, 1.6f, "%.2f");
+			precise::SliderFloat(label(TR("RMA_OptUiScale", "Interface size"), "##uiscale").c_str(), &st.uiScale, 0.7f, 1.6f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();
 			im::SetNextItemWidth(u * 10.0f);
-			im::SliderFloat(label(TR("RMA_OptEditorWidth", "Editor width"), "##editorwidth").c_str(), &st.editorWidth, 0.22f, 0.45f, "%.2f");
+			precise::SliderFloat(label(TR("RMA_OptEditorWidth", "Editor width"), "##editorwidth").c_str(), &st.editorWidth, 0.22f, 0.45f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();
 			im::SetNextItemWidth(u * 10.0f);
-			im::SliderFloat(label(TR("RMA_OptRotateSpeed", "Drag rotation speed"), "##rotatespeed").c_str(), &st.rotateSpeed, 0.1f, 1.0f, "%.2f");
+			precise::SliderFloat(label(TR("RMA_OptRotateSpeed", "Drag rotation speed"), "##rotatespeed").c_str(), &st.rotateSpeed, 0.1f, 1.0f, "%.2f");
 			save |= im::IsItemDeactivatedAfterEdit();
 			im::Spacing();
 			W::SmallText(im::GetWindowDrawList(), im::GetCursorScreenPos(), Color::TextFaint,
