@@ -4,10 +4,8 @@ A continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, with
 a full controller layout and the Norden Black theme. Released on Nexus Mods as ApocryphaRealm's own page (2026-10-27),
 with Nexus Mods staff (Trust & Safety) having approved the fork and upload, under the same GPL-3.0 licence.
 
-- Upstream: RaceMenu Atelier by RustyOldSword (formerly emberchain), GPL-3.0 -
-  [rustyoldsword/RaceMenuAtelier](https://github.com/rustyoldsword/RaceMenuAtelier) (current, 1.0.3) and
-  [emberchain/RaceMenuAtelier](https://github.com/emberchain/RaceMenuAtelier) (the old repository, to 1.0.1). It was on
-  Nexus as mod 193865 until Nexus staff removed it; it is also on dwemermods.com (mod 4840).
+- Upstream: RaceMenu Atelier by RustyOldSword (formerly emberchain), GPL-3.0. Copyright in it stays with its author;
+  the original's commit history (from `8db73c5`, 1.0.0) is kept in this repository.
 - `main`: Atelier 1.0.0 (`8db73c5`) plus the Apprentice patch below, shipped with the Norden Black theme
   (`themes/norden-black.ini`, installed as `SKSE\Plugins\RaceMenuAtelier\theme.ini`). The last build proven in game
   was version 1.0.0 (DLL SHA-256 `2409DA145E3B601AE5D46BE50A624CB36AEA491C75C98E00645B8226AB1F3A6E`, commit

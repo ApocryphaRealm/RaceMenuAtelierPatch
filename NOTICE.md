@@ -1,9 +1,7 @@
 # Notice
 
-This is a modified version of **RaceMenu Atelier** by **RustyOldSword** (formerly **emberchain**)
-(https://github.com/rustyoldsword/RaceMenuAtelier, formerly https://github.com/emberchain/RaceMenuAtelier; once
-https://www.nexusmods.com/skyrimspecialedition/mods/193865, removed by Nexus staff), licensed GPL-3.0. Copyright in
-RaceMenu Atelier stays with its author. The modifications (choice categories for lists other mods add to RaceMenu, the theme file, the DevBench tool)
+This is a modified version of **RaceMenu Atelier** by **RustyOldSword** (formerly **emberchain**), licensed
+GPL-3.0. Copyright in RaceMenu Atelier stays with its author. The modifications (choice categories for lists other mods add to RaceMenu, the theme file, the DevBench tool)
 are by ApocryphaRealm, 2026, under the same licence. The upstream commit history is kept in this repository.
 
 Made to work with **Apprentice - A Class Overhaul** by Simon Magus and LambdaCDM

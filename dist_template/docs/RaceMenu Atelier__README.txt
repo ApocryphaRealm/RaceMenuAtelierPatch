@@ -35,4 +35,4 @@ Uninstall
 ---------
 Disable or remove the mod. RaceMenu returns to its stock interface; saves are not affected.
 
-Source code (GPL-3.0): https://github.com/emberchain/RaceMenuAtelier
+Source code (GPL-3.0): https://github.com/ApocryphaRealm/RaceMenuAtelierPatch
