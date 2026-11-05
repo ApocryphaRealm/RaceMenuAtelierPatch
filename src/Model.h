@@ -144,6 +144,8 @@ namespace RMA
 		std::string            editorID;
 		std::uint32_t          formID{ 0 };
 		std::string            description;
+		std::string            textSource;      // the plugin the description came from
+		double                 textCloseness{ 0.0 };  // how close that plugin's spell list is to the live one (0..1)
 		std::string            attributes;  // the game's own names: "Health 50  ·  Magicka 50 ..."
 		std::string            skills;      // "+10 One-Handed  ·  +5 Smithing ..."
 		std::vector<RaceSpell> spells;      // in the order of RaceSpellKind

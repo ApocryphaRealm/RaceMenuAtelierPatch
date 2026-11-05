@@ -44,10 +44,15 @@ Everything else is Atelier 1.0.0 unchanged.
 
 On the race page the bottom half of the race area describes the highlighted race: its name and description, starting
 attributes and skill bonuses, and its spell list by type (passive abilities, powers, lesser powers, shouts, starting
-spells), each with its name and description. All of it comes from the live race records after data load, so it follows
-any race mod, override plugin or SkyPatcher edit, and the mod holds no race text. The description is whatever the
-winning race record says: a list that changes a race's spells without changing its text shows the old text above the
-real abilities. The right stick (up/down) or the mouse wheel scrolls the panel.
+spells), each with its name and description. A page of another mod's choices (Apprentice's classes and traits) gets the
+same panel with the choice's description. The numbers and the spell list come from the live race records after data
+load, so they are what the game applies, whatever overrides or SkyPatcher edits made them; the mod holds no race text.
+
+The description comes from the race mod's own plugin, not from whichever plugin wins the record: of the plugins holding
+the race, the last one whose spell list is closest to the live list. If that is the winner, or no plugin shares a spell
+with the live list, the game's own text stands. Plugins are read at run time and nothing in them is changed. Skill
+bonuses stay with the live race, since the game applies those and not the race mod's. `RaceMenuAtelier.log` says which
+plugin gave each race its text. The right stick (up/down) or the mouse wheel scrolls the panel.
 
 ## Building
 

@@ -190,6 +190,8 @@ namespace RMA::DevBenchTool
 						row["editorID"] = info.editorID;
 						row["formID"] = std::format("{:08X}", info.formID);
 						row["description"] = info.description;
+						row["text_source"] = info.textSource;
+						row["text_closeness"] = info.textCloseness;
 						row["attributes"] = info.attributes;
 						row["skills"] = info.skills;
 						row["spells"] = std::move(spells);
@@ -251,7 +253,7 @@ namespace RMA::DevBenchTool
 			"controller X does; op=language name=<language, empty = the game's> - Atelier's own text in another shipped "
 			"language for this session; op=nudge name=uiscale|editorwidth|rotatespeed dir=1|-1 count=N - open the options, "
 			"highlight that slider and step it N units of 0.01; op=options - the three option values and the last nudge; "
-			"op=raceinfo name=<race, empty = all> - what the race panel reads from the live race records (record, description, "
+			"op=raceinfo name=<race, empty = all> - what the race panel reads (record, description and the plugin it came from, "
 			"attributes, skills, spells by kind: 0 passive, 1 power, 2 lesser power, 3 shout, 4 spell, 5 other); op=racepanel "
 			"name=<race> scroll=<pixels> - show a race and scroll the panel next frame, then its state.\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"

@@ -16,4 +16,5 @@ Also included:
 - SKSE Menu Framework 3 API header (`lib/SKSE-Menu-Framework-3-API`), LGPL-2.1, Thiago and Quantumyilmaz.
 - CommonLibSSE-NG (`lib/CommonLibSSE-NG`), its own licence.
 - devbench cross-plugin API glue (`src/DevBench/DevBenchAPI.*`), MIT, Alan Tse and devbench contributors.
+- zlib (zlib.net), zlib licence, Jean-loup Gailly and Mark Adler: reads compressed records of plugins.
 - RaceMenu by expired6978 is required at run time and not included.

@@ -18,6 +18,7 @@ set_defaultplat("windows")
 set_defaultarchs("x64")
 
 add_requires("nlohmann_json v3.12.0")
+add_requires("zlib")  -- 1.2.0: a plugin's compressed records, for the race panel's text
 
 if is_plat("windows") then
     add_defines("_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS", "WIN32_LEAN_AND_MEAN", "NOMINMAX", "NOGDI", "UNICODE", "_UNICODE")
@@ -51,7 +52,7 @@ target("RaceMenuAtelier", function()
         description = "Native RaceMenu interface built on SKSE Menu Framework - Apprentice classes/traits and theme patch"
     })
     add_rules("rma.deploy")
-    add_packages("nlohmann_json")
+    add_packages("nlohmann_json", "zlib")
 
     add_files("src/**.cpp")
     add_headerfiles("src/**.h")

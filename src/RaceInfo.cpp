@@ -1,5 +1,7 @@
 #include "RaceInfo.h"
 
+#include "PluginRaces.h"
+
 namespace RMA::RaceData
 {
 	namespace
@@ -220,6 +222,180 @@ namespace RMA::RaceData
 			}
 		}
 
+		// ------------------------------------------------------------------
+		// the race's text, from the plugin whose race is the one the player gets
+		//
+		// The owner, 2026-11-05: the panel should show the race mod's own text, not whatever plugin happens to win the
+		// record. A list can load another plugin over a race mod's races and apply the mod's spells by SkyPatcher, so the
+		// winning record's text describes abilities the race no longer has. Nothing is changed in any record. Of the
+		// plugins holding this race, the text comes from the last one whose spell list is closest to the live list; when
+		// that is the winner, or no plugin shares a spell with the live list, the game's own text stands. No plugin is
+		// named: the live spell list alone says which one it is.
+
+		struct LoadedPlugin
+		{
+			struct Race
+			{
+				const PluginRaces::Race* record;
+				RE::FormID               formID;
+				std::set<RE::FormID>     spellList;
+			};
+
+			PluginRaces::File file;
+			std::vector<Race> races;
+		};
+
+		// a form id as a plugin writes it -> the running game's
+		RE::FormID RuntimeID(std::uint32_t a_written, const PluginRaces::File& a_file, std::string_view a_fileName)
+		{
+			auto*             data = RE::TESDataHandler::GetSingleton();
+			const std::size_t index = a_written >> 24;
+			const std::string_view owner = index < a_file.masters.size() ? std::string_view(a_file.masters[index]) : a_fileName;
+			const auto*       mod = data->LookupModByName(owner);
+			if (!mod) {
+				return 0;
+			}
+			return data->LookupFormID(a_written & (mod->IsLight() ? 0xFFFu : 0xFFFFFFu), owner);
+		}
+
+		// Each file once per game session: what a plugin holds does not change while the game runs. Game thread only.
+		const LoadedPlugin& Load(std::string_view a_fileName)
+		{
+			static std::unordered_map<std::string, std::unique_ptr<LoadedPlugin>> cache;
+			const std::string name(a_fileName);
+			auto&             slot = cache[name];
+			if (slot) {
+				return *slot;
+			}
+			slot = std::make_unique<LoadedPlugin>();
+			slot->file = PluginRaces::Read("Data\\" + name);  // relative, as the game opens it: a mod manager's folders apply
+			if (!slot->file.readable) {
+				logger::info("race panel: could not read {}", name);
+			}
+			slot->races.reserve(slot->file.races.size());
+			for (const auto& record : slot->file.races) {
+				LoadedPlugin::Race race{ &record, RuntimeID(record.formID, slot->file, name), {} };
+				for (const auto written : record.spellList) {
+					if (const auto id = RuntimeID(written, slot->file, name)) {
+						race.spellList.insert(id);
+					}
+				}
+				slot->races.push_back(std::move(race));
+			}
+			return *slot;
+		}
+
+		std::set<RE::FormID> LiveSpellList(const RE::TESRace& a_race)
+		{
+			std::set<RE::FormID> out;
+			const auto*          list = a_race.actorEffects;
+			if (!list) {
+				return out;
+			}
+			const auto add = [&](const auto* a_forms, std::uint32_t a_count) {
+				for (std::uint32_t i = 0; a_forms && i < a_count; ++i) {
+					if (a_forms[i]) {
+						out.insert(a_forms[i]->GetFormID());
+					}
+				}
+			};
+			add(list->spells, list->numSpells);
+			add(list->levSpells, list->numlevSpells);
+			add(list->shouts, list->numShouts);
+			return out;
+		}
+
+		// shared spells over all spells of the two lists: 1 is the same list
+		double Closeness(const std::set<RE::FormID>& a_lhs, const std::set<RE::FormID>& a_rhs)
+		{
+			std::size_t shared = 0;
+			for (const auto id : a_lhs) {
+				shared += a_rhs.contains(id) ? 1 : 0;
+			}
+			const std::size_t all = a_lhs.size() + a_rhs.size() - shared;
+			return all ? static_cast<double>(shared) / static_cast<double>(all) : 0.0;
+		}
+
+		// a localized plugin's text: its strings file for the game's language, loose or in an archive, as the game finds it
+		std::string LocalizedText(std::string_view a_fileName, std::uint32_t a_id)
+		{
+			const auto dot = a_fileName.rfind('.');
+			const auto path = std::format("Strings\\{}_{}.DLSTRINGS", a_fileName.substr(0, dot), Text::GameLanguage());
+			RE::BSResourceNiBinaryStream stream(path);
+			if (!stream.good()) {
+				return {};
+			}
+			std::array<char, 8> head{};
+			if (!stream.read(head.data(), 8)) {
+				return {};
+			}
+			std::uint32_t count = 0;
+			std::uint32_t size = 0;
+			std::memcpy(&count, head.data(), 4);
+			std::memcpy(&size, head.data() + 4, 4);
+			const std::uint64_t rest = static_cast<std::uint64_t>(count) * 8 + size;
+			if (rest > 128u * 1024u * 1024u) {
+				return {};
+			}
+			std::string data(8 + static_cast<std::size_t>(rest), '\0');
+			std::memcpy(data.data(), head.data(), 8);
+			if (!stream.read(data.data() + 8, static_cast<std::uint32_t>(rest))) {
+				return {};
+			}
+			return PluginRaces::LookupDLString(data, a_id);
+		}
+
+		void ReadDescription(RE::TESRace& a_race, RaceInfo& a_info)
+		{
+			a_info.description = OwnDescription(a_race, &a_race);
+			const auto* files = a_race.sourceFiles.array;
+			const auto* winner = a_race.GetFile();
+			if (!files || !winner) {
+				return;
+			}
+			a_info.textSource = winner->GetFilename();
+			if (files->size() < 2) {
+				return;  // no plugin but the one that made it
+			}
+			const auto  live = LiveSpellList(a_race);
+			double      best = 0.0;
+			double      winnerCloseness = 0.0;
+			const RE::TESFile*       bestFile = nullptr;
+			const PluginRaces::Race* bestRecord = nullptr;
+			for (const auto* file : *files) {
+				if (!file) {
+					continue;
+				}
+				const auto&  plugin = Load(file->GetFilename());
+				const auto   it = std::ranges::find_if(plugin.races, [&](const LoadedPlugin::Race& a_entry) { return a_entry.formID == a_race.GetFormID(); });
+				if (it == plugin.races.end()) {
+					continue;
+				}
+				const double closeness = Closeness(live, it->spellList);
+				if (file == winner) {
+					winnerCloseness = closeness;
+				}
+				const bool hasText = plugin.file.localized ? it->record->stringID != 0 : !it->record->description.empty();
+				if (hasText && closeness > 0.0 && closeness >= best) {
+					best = closeness;
+					bestFile = file;
+					bestRecord = it->record;
+				}
+			}
+			a_info.textCloseness = winnerCloseness;
+			const char* editorID = a_race.GetFormEditorID() ? a_race.GetFormEditorID() : "";
+			if (bestFile && bestFile != winner) {
+				const auto& plugin = Load(bestFile->GetFilename());
+				auto        text = Clean(plugin.file.localized ? LocalizedText(bestFile->GetFilename(), bestRecord->stringID) : bestRecord->description);
+				if (!text.empty()) {
+					a_info.description = std::move(text);
+					a_info.textSource = bestFile->GetFilename();
+					a_info.textCloseness = best;
+				}
+			}
+			logger::info("race panel: {} text from {} (spell list closeness {:.2f}; the winner {} {:.2f})", editorID, a_info.textSource, a_info.textCloseness, winner->GetFilename(), winnerCloseness);
+		}
+
 		// The race behind a name on RaceMenu's list. The list carries only the name, and several records can share one: the
 		// playable race beats a helper record, the living race beats its vampire form, and the oldest form id beats a
 		// quest's copy (DLC1NordRace, DA13AfflictedRace).
@@ -277,7 +453,7 @@ namespace RMA::RaceData
 			info.found = true;
 			info.editorID = race->GetFormEditorID() ? race->GetFormEditorID() : "";
 			info.formID = race->GetFormID();
-			info.description = OwnDescription(*race, race);
+			ReadDescription(*race, info);
 			ReadSpells(*race, info);
 			ReadStats(*race, info);
 		}

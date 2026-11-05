@@ -1159,6 +1159,22 @@ namespace RMA::UI
 			im::PopID();
 		}
 
+		// 1.2.0: the panel under the tiles follows the controller highlight at once. The mouse must rest a moment on a tile,
+		// so that moving down to the panel across other tiles does not change what it shows.
+		void NotePanelTile(const Entry& a_entry, bool a_hovered)
+		{
+			if (im::IsItemFocused() && im::GetIO()->NavVisible) {
+				s.raceInfoKey = a_entry.key;
+			} else if (a_hovered) {
+				if (s.raceHoverKey != a_entry.key) {
+					s.raceHoverKey = a_entry.key;
+					s.raceHoverSince = Text::Now();
+				} else if (Text::Now() - s.raceHoverSince > 0.25) {
+					s.raceInfoKey = a_entry.key;
+				}
+			}
+		}
+
 		// compact name tiles; neighbours alternate between two tints so the
 		// eye can tell them apart, the current race is outlined in gold
 		void RenderRaces(Model& a_model, float a_width, float a_cardH, float a_gap, int a_columns)
@@ -1186,18 +1202,7 @@ namespace RMA::UI
 				W::MarkFocus();
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentRace(e);
-				// 1.2.0: the race panel follows the controller highlight at once. The mouse must rest a moment on a tile, so
-				// that moving down to the panel across other tiles does not change what it shows.
-				if (im::IsItemFocused() && im::GetIO()->NavVisible) {
-					s.raceInfoKey = e.key;
-				} else if (hovered) {
-					if (s.raceHoverKey != e.key) {
-						s.raceHoverKey = e.key;
-						s.raceHoverSince = Text::Now();
-					} else if (Text::Now() - s.raceHoverSince > 0.25) {
-						s.raceInfoKey = e.key;
-					}
-				}
+				NotePanelTile(e, hovered);
 				if (current && s.landOnCurrent) {
 					NavHere();
 					s.landOnCurrent = false;
@@ -1256,6 +1261,7 @@ namespace RMA::UI
 				W::MarkFocus();
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentChoice(e);
+				NotePanelTile(e, hovered);
 				if (current && s.landOnCurrent) {
 					NavHere();
 					s.landOnCurrent = false;
@@ -2182,33 +2188,62 @@ namespace RMA::UI
 		// ------------------------------------------------------------------
 		// the race panel (1.2.0)
 
-		// The race page, or a search that found only races: the panel takes the bottom half. Not "All" or a mixed search,
-		// where the races are a few rows among hundreds of sliders.
+		// The race page, a page of another mod's choices (Apprentice's classes and traits, whose descriptions a controller
+		// could never reach in a mouse tooltip), or a search that found only those: the panel takes the bottom half. Not
+		// "All" or a mixed search, where the tiles are a few rows among hundreds of sliders.
 		bool ShowRacePanel()
 		{
 			bool races = false;
+			bool choices = false;
 			bool others = false;
 			for (const auto& item : s.items) {
-				(item.kind == Item::Kind::Races ? races : others) = true;
+				if (item.kind == Item::Kind::Races) {
+					races = true;
+				} else if (item.kind == Item::Kind::Choices) {
+					choices = true;
+				} else {
+					others = true;
+				}
 			}
-			return races && (s.search[0] ? !others : s.categoryFlag == Defs::kCategoryRace);
+			if (s.search[0]) {
+				return (races || choices) && !others;
+			}
+			if (s.categoryRaw.empty() || s.categoryFlag == Defs::kCategoryAll) {
+				return false;
+			}
+			return s.categoryFlag == Defs::kCategoryRace ? races : choices;
 		}
 
+		// the highlighted tile on this page, else the current race or pick, else the first tile
 		const Entry* RacePanelEntry(const Model& a_model)
 		{
 			const Entry* current = nullptr;
-			for (const auto& e : a_model.entries) {
-				if (e.control != Control::Race) {
-					continue;
+			const Entry* first = nullptr;
+			const auto   consider = [&](const Entry& a_entry) {
+				if (!first) {
+					first = &a_entry;
 				}
-				if (e.key == s.raceInfoKey) {
-					return &e;
+				if (a_entry.control == Control::Race ? a_model.IsCurrentRace(a_entry) : a_model.IsCurrentChoice(a_entry)) {
+					current = &a_entry;
 				}
-				if (a_model.IsCurrentRace(e)) {
-					current = &e;
+				return a_entry.key == s.raceInfoKey;
+			};
+			for (const auto& item : s.items) {
+				if (item.kind == Item::Kind::Races) {
+					for (const auto& e : a_model.entries) {
+						if (e.control == Control::Race && consider(e)) {
+							return &e;
+						}
+					}
+				} else if (item.kind == Item::Kind::Choices) {
+					for (const auto i : item.members) {
+						if (i < a_model.entries.size() && consider(a_model.entries[i])) {
+							return &a_model.entries[i];
+						}
+					}
 				}
 			}
-			return current;
+			return current ? current : first;
 		}
 
 		void RaceText(ImU32 a_color, const std::string& a_text)
@@ -2292,7 +2327,7 @@ namespace RMA::UI
 				im::PushTextWrapPos(0.0f);
 				const auto& description = info ? info->description : entry->description;
 				if (description.empty()) {
-					RaceText(Color::TextFaint, TR("RMA_RaceInfoNoDescription", "This race has no description."));
+					RaceText(Color::TextFaint, entry->control == Control::Race ? TR("RMA_RaceInfoNoDescription", "This race has no description.") : TR("RMA_ChoiceNoDescription", "No description."));
 				} else {
 					RaceText(Color::Text, description);
 				}
@@ -2937,8 +2972,9 @@ namespace RMA::UI
 		auto&            model = Model::Get();
 		std::scoped_lock lock(model.mutex);
 		const auto*      entry = RacePanelEntry(model);
-		return std::format("{{\"shown\":{},\"highlight_seen\":{},\"is_current_race\":{},\"scrollY\":{},\"scrollMaxY\":{}}}", s.racePanelShown, !s.raceInfoKey.empty(),
-			entry && model.IsCurrentRace(*entry), s.raceScrollY, s.raceScrollMaxY);
+		const bool       current = entry && (entry->control == Control::Race ? model.IsCurrentRace(*entry) : model.IsCurrentChoice(*entry));
+		return std::format("{{\"shown\":{},\"highlight_seen\":{},\"is_current\":{},\"scrollY\":{},\"scrollMaxY\":{}}}", s.racePanelShown, !s.raceInfoKey.empty(),
+			current, s.raceScrollY, s.raceScrollMaxY);
 	}
 
 	std::string RacePanelLabel()
@@ -2958,7 +2994,7 @@ namespace RMA::UI
 			return true;
 		}
 		for (const auto& e : model.entries) {
-			if (e.control == Control::Race && (e.label == a_race || e.text == a_race)) {
+			if ((e.control == Control::Race || e.control == Control::Choice) && (e.label == a_race || e.text == a_race)) {
 				s.raceInfoKey = e.key;
 				return true;
 			}

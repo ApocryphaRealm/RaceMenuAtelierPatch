@@ -14,8 +14,10 @@ New in 1.2.0
 ------------
 - A race panel on the race page: the bottom half of the race area says what the highlighted race is. Its name and
   description, starting attributes and skill bonuses, its passive abilities, powers, shouts and starting spells, each
-  with its description. It is read from the game's own race records, so it follows whatever race mod you use. The right
-  stick (up/down) or the mouse wheel scrolls it.
+  with its description. It reads the game's data at run time, so it follows whatever race mod you use; the description
+  comes from the race mod's own plugin even when another plugin overrides the race. The right stick (up/down) or the
+  mouse wheel scrolls it. Apprentice's class and trait pages get the same panel, so their descriptions can be read on
+  a controller.
 
 New in 1.1.0
 ------------
