@@ -3,6 +3,11 @@
 A fork of RaceMenu Atelier 1.0.0 (emberchain). Written as changes happen (rule 61); a version number is issued by the
 version gate only once a build is seen working in game (rule 48).
 
+## 1.2.0 - 2026-11-05 - untested
+
+### Added
+- A race panel on the race page (the owner, in game, 2026-11-05: Atelier did not say what a race is). The bottom half of the race area describes the race the controller highlight is on (or the mouse rests on; until one is highlighted, the current race) and follows as the highlight moves: its name and description, starting attributes and skill bonuses, then its spell list by type - passive abilities, powers (once a day), lesser powers (at will), shouts, starting spells, other effects - each with its name and description. All of it is read from the game's live race records after data load, so an override plugin or a SkyPatcher race edit shows as what the player really gets, with any race mod; the mod holds no race text. Spell descriptions come from the game's own magic-description call, so <mag>, <dur>, <Global=X> and <25> read as in the game's menus; the race and shout text is resolved the same way, and other tags are dropped. Helper spells with no name, or passives with no text and only hidden effects, stay out, as in the game's menu. Long text wraps and scrolls: the right stick up/down scrolls it from the tiles (left/right still turns the character), the mouse wheel over it too. Ten new lines in all eleven languages. DevBench atelier.control: op=raceinfo name=<race> (all the panel reads, with the record it matched), op=racepanel name=<race> scroll=<pixels>.
+
 ## 1.1.0 - 2026-10-27 - working
 
 (1.0.2, the Cyrillic fix below, was never posted; it is folded into 1.1.0 because translating the editor is new functionality.)

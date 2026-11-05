@@ -120,6 +120,36 @@ namespace RMA
 		int         sex{ -1 };  // 0 male, 1 female
 	};
 
+	// 1.2.0: what the race panel shows for one race, read from the live TESRace (RaceInfo.cpp)
+	enum class RaceSpellKind
+	{
+		Passive,
+		Power,        // once a day
+		LesserPower,  // at will
+		Shout,
+		Spell,
+		Other
+	};
+
+	struct RaceSpell
+	{
+		RaceSpellKind kind{ RaceSpellKind::Other };
+		std::string   name;
+		std::string   description;
+	};
+
+	struct RaceInfo
+	{
+		bool                   found{ false };  // a TESRace of that name was found
+		std::string            editorID;
+		std::uint32_t          formID{ 0 };
+		std::string            description;
+		std::string            attributes;  // the game's own names: "Health 50  ·  Magicka 50 ..."
+		std::string            skills;      // "+10 One-Handed  ·  +5 Smithing ..."
+		std::vector<RaceSpell> spells;      // in the order of RaceSpellKind
+		int                    hiddenSpells{ 0 };  // helper spells the panel leaves out
+	};
+
 	struct HeadPart
 	{
 		int         index{ 0 };
@@ -207,6 +237,7 @@ namespace RMA
 		double                                             headPartSlider{ -1.0 };
 		std::vector<HeadPart>                              headParts;
 		bool                                               headPartsLoaded{ false };
+		std::unordered_map<std::string, RaceInfo>          raceInfo;  // entry key -> the race panel's data (1.2.0)
 		std::string                                        status;
 		std::string                                        statusEnglish;  // 1.1.0: the same line in English, for the log and DevBench
 		double                                             statusTime{ 0.0 };

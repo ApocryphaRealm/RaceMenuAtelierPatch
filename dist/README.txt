@@ -1,5 +1,5 @@
 RaceMenu Atelier
-Version 1.1.0
+Version 1.2.0
 Based on upstream RaceMenu Atelier 1.0.0, with the Apprentice patch and the Norden Black theme.
 
 A continuation of RustyOldSword's (formerly emberchain's) RaceMenu Atelier, GPL-3.0, released on Nexus Mods with the
@@ -9,6 +9,13 @@ Source: https://github.com/ApocryphaRealm/RaceMenuAtelierPatch
 A native interface for RaceMenu, with the editor's own text in eleven languages, a full controller layout, theme
 support and Apprentice - A Class Overhaul support. RaceMenu is not modified: its own menu stays loaded underneath and
 does the actual work.
+
+New in 1.2.0
+------------
+- A race panel on the race page: the bottom half of the race area says what the highlighted race is. Its name and
+  description, starting attributes and skill bonuses, its passive abilities, powers, shouts and starting spells, each
+  with its description. It is read from the game's own race records, so it follows whatever race mod you use. The right
+  stick (up/down) or the mouse wheel scrolls it.
 
 New in 1.1.0
 ------------

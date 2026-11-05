@@ -1,4 +1,5 @@
 #include "Bridge.h"
+#include "RaceInfo.h"
 #include "Strings.h"
 
 #include <nlohmann/json.hpp>
@@ -300,6 +301,44 @@ namespace RMA::Bridge
 			return info;
 		}
 
+		// 1.2.0: the race panel's data, once per race per opening of the menu (a mod can add a race to the list later)
+		void ReadRaceInfo()
+		{
+			struct Wanted
+			{
+				std::string key, name, description;
+			};
+			std::vector<Wanted> wanted;
+			WithModel([&](Model& m) {
+				for (const auto& e : m.entries) {
+					if (e.control == Control::Race && !m.raceInfo.contains(e.key)) {
+						wanted.push_back({ e.key, e.rawText, e.description });
+					}
+				}
+			});
+			if (wanted.empty()) {
+				return;
+			}
+			int found = 0;
+			std::vector<std::pair<std::string, RaceInfo>> read;
+			read.reserve(wanted.size());
+			for (const auto& w : wanted) {
+				auto info = RaceData::Read(w.name, w.description);
+				if (info.found) {
+					++found;
+				} else {
+					logger::info("race panel: no race record is named '{}'; only the list's description is shown", w.name);
+				}
+				read.emplace_back(w.key, std::move(info));
+			}
+			WithModel([&](Model& m) {
+				for (auto& [key, info] : read) {
+					m.raceInfo[key] = std::move(info);
+				}
+			});
+			logger::info("race panel: read {} race(s), {} matched to a race record", read.size(), found);
+		}
+
 		void PushSnapshot()
 		{
 			Snapshot snapshot;
@@ -311,6 +350,7 @@ namespace RMA::Bridge
 				m.ApplyPlayer(std::move(player));
 			});
 			logger::info("read {} RaceMenu entries", count);
+			ReadRaceInfo();
 		}
 
 		// ------------------------------------------------------------------

@@ -163,6 +163,41 @@ namespace RMA::DevBenchTool
 				const int dir = args.value("dir", 1);
 				const int count = args.value("count", 1);
 				out = { { "ok", UI::NudgeSlider(name, dir, count) }, { "name", name }, { "note", "applied on the next frame - read op=options" } };
+			} else if (op == "racepanel") {
+				// 1.2.0: name=<race> shows that race, scroll=<pixels> scrolls the panel (next frame); then reads the state
+				const float scroll = args.value("scroll", 0.0f);
+				const bool  driven = UI::RacePanelDrive(name, scroll);
+				out = json::parse(UI::RacePanelState(), nullptr, false);
+				out["ok"] = driven;
+				out["race"] = UI::RacePanelLabel();
+			} else if (op == "raceinfo") {
+				// 1.2.0: every race on the list (or name=<race>): the record it matched and all the panel reads from it
+				auto&            model = Model::Get();
+				std::scoped_lock lock(model.mutex);
+				json             races = json::array();
+				for (const auto& e : model.entries) {
+					if (e.control != Control::Race || (!name.empty() && e.label != name && e.text != name)) {
+						continue;
+					}
+					json row = { { "label", e.label }, { "raw", e.rawText }, { "list_description", e.description }, { "raceID", e.raceID } };
+					if (const auto it = model.raceInfo.find(e.key); it != model.raceInfo.end()) {
+						const auto& info = it->second;
+						json        spells = json::array();
+						for (const auto& spell : info.spells) {
+							spells.push_back({ { "kind", static_cast<int>(spell.kind) }, { "name", spell.name }, { "description", spell.description } });
+						}
+						row["found"] = info.found;
+						row["editorID"] = info.editorID;
+						row["formID"] = std::format("{:08X}", info.formID);
+						row["description"] = info.description;
+						row["attributes"] = info.attributes;
+						row["skills"] = info.skills;
+						row["spells"] = std::move(spells);
+						row["hiddenSpells"] = info.hiddenSpells;
+					}
+					races.push_back(std::move(row));
+				}
+				out = { { "ok", true }, { "races", std::move(races) } };
 			} else if (op == "options") {
 				out = json::parse(UI::Options(), nullptr, false);
 				if (out.is_discarded()) {
@@ -215,9 +250,12 @@ namespace RMA::DevBenchTool
 			"op=save_preset name=<UTF-8> - save the character as a preset; op=pad_done - open the Finish confirmation as "
 			"controller X does; op=language name=<language, empty = the game's> - Atelier's own text in another shipped "
 			"language for this session; op=nudge name=uiscale|editorwidth|rotatespeed dir=1|-1 count=N - open the options, "
-			"highlight that slider and step it N units of 0.01; op=options - the three option values and the last nudge.\","
+			"highlight that slider and step it N units of 0.01; op=options - the three option values and the last nudge; "
+			"op=raceinfo name=<race, empty = all> - what the race panel reads from the live race records (record, description, "
+			"attributes, skills, spells by kind: 0 passive, 1 power, 2 lesser power, 3 shout, 4 spell, 5 other); op=racepanel "
+			"name=<race> scroll=<pixels> - show a race and scroll the panel next frame, then its state.\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
-			"\"field\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"},\"dir\":{\"type\":\"integer\"},\"count\":{\"type\":\"integer\"}}},"
+			"\"field\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"},\"dir\":{\"type\":\"integer\"},\"count\":{\"type\":\"integer\"},\"scroll\":{\"type\":\"number\"}}},"
 			"\"readOnly\":false"
 			"}";
 		if (devBench->RegisterTool("atelier.control", descriptor, &Tool, nullptr)) {

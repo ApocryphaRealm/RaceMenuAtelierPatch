@@ -40,6 +40,15 @@ with the races - and a click called `ChangeRace(raceID)` directly. A class's `ra
 
 Everything else is Atelier 1.0.0 unchanged.
 
+## The race panel (1.2.0)
+
+On the race page the bottom half of the race area describes the highlighted race: its name and description, starting
+attributes and skill bonuses, and its spell list by type (passive abilities, powers, lesser powers, shouts, starting
+spells), each with its name and description. All of it comes from the live race records after data load, so it follows
+any race mod, override plugin or SkyPatcher edit, and the mod holds no race text. The description is whatever the
+winning race record says: a list that changes a race's spells without changing its text shows the old text above the
+real abilities. The right stick (up/down) or the mouse wheel scrolls the panel.
+
 ## Building
 
 Visual Studio 2022+ (C++ workload) and xmake 3.0+:

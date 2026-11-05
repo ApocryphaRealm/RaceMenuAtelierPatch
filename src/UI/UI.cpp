@@ -286,6 +286,19 @@ namespace RMA::UI
 			bool            landOnCurrent{ false };        // entering content never visited: highlight the current race or choice
 			bool            initPending{ false };          // ... or, with none, the first item (next frame)
 			std::string     contentKey;                    // the content window shown
+			// 1.2.0: the race panel under the race tiles
+			std::string     raceInfoKey;                   // the race shown (the highlighted tile; the current race until one is)
+			std::string     raceHoverKey;                  // the tile under the mouse, and since when
+			double          raceHoverSince{ 0.0 };
+			std::string     raceScrolledFor;               // the race the panel last started from the top for
+			bool            raceScrolling{ false };        // this frame: the right stick is scrolling the panel, not turning the character
+			bool            raceScrollingLast{ false };
+			bool            racePanelShown{ false };
+			float           raceScrollY{ 0.0f };
+			float           raceScrollMaxY{ 0.0f };
+			float           raceDriveScroll{ 0.0f };       // DevBench: pixels to scroll on the next frame
+			float           raceStickScroll{ 0.0f };       // where the stick has the panel: ImGui rounds a scroll to whole pixels,
+			                                               // so a slow tilt added frame by frame to its value would never move
 			bool            leftPending{ false };          // D-pad left pressed on the content: leave if ImGui moved nothing
 			ImGuiMCP::ImGuiID leftFrom{ 0 };
 			bool            popupLastFrame{ false };
@@ -298,6 +311,7 @@ namespace RMA::UI
 		// neither RaceMenu nor a rotation mod sees the right stick - the editor turns the character with it itself, as
 		// RaceMenu does.
 		std::atomic<float> g_rightStickX{ 0.0f };
+		std::atomic<float> g_rightStickY{ 0.0f };  // 1.2.0: scrolls the race panel
 
 		// Controller: the left stick's x while the editor holds the input. The editor takes the left stick for itself
 		// then (left/right switches between its two windows), so ImGui does not also scroll with it; in RaceMenu's own
@@ -559,12 +573,14 @@ namespace RMA::UI
 			s.leftPending = false;
 			s.landCategory = true;
 			s.rootFocused = s.categoriesFocused = s.contentFocused = false;
+			s.raceInfoKey.clear();  // each opening starts on the current race
 		}
 
 		void EndSession()
 		{
 			s.session = false;
 			g_rightStickX.store(0.0f, std::memory_order_relaxed);
+			g_rightStickY.store(0.0f, std::memory_order_relaxed);
 			g_leftStickX.store(0.0f, std::memory_order_relaxed);
 			g_editorHasInput.store(false, std::memory_order_relaxed);
 			ReleaseLock();
@@ -1170,6 +1186,18 @@ namespace RMA::UI
 				W::MarkFocus();
 				const bool  hovered = im::IsItemHovered();
 				const bool  current = a_model.IsCurrentRace(e);
+				// 1.2.0: the race panel follows the controller highlight at once. The mouse must rest a moment on a tile, so
+				// that moving down to the panel across other tiles does not change what it shows.
+				if (im::IsItemFocused() && im::GetIO()->NavVisible) {
+					s.raceInfoKey = e.key;
+				} else if (hovered) {
+					if (s.raceHoverKey != e.key) {
+						s.raceHoverKey = e.key;
+						s.raceHoverSince = Text::Now();
+					} else if (Text::Now() - s.raceHoverSince > 0.25) {
+						s.raceInfoKey = e.key;
+					}
+				}
 				if (current && s.landOnCurrent) {
 					NavHere();
 					s.landOnCurrent = false;
@@ -2151,6 +2179,152 @@ namespace RMA::UI
 			EndColumn();
 		}
 
+		// ------------------------------------------------------------------
+		// the race panel (1.2.0)
+
+		// The race page, or a search that found only races: the panel takes the bottom half. Not "All" or a mixed search,
+		// where the races are a few rows among hundreds of sliders.
+		bool ShowRacePanel()
+		{
+			bool races = false;
+			bool others = false;
+			for (const auto& item : s.items) {
+				(item.kind == Item::Kind::Races ? races : others) = true;
+			}
+			return races && (s.search[0] ? !others : s.categoryFlag == Defs::kCategoryRace);
+		}
+
+		const Entry* RacePanelEntry(const Model& a_model)
+		{
+			const Entry* current = nullptr;
+			for (const auto& e : a_model.entries) {
+				if (e.control != Control::Race) {
+					continue;
+				}
+				if (e.key == s.raceInfoKey) {
+					return &e;
+				}
+				if (a_model.IsCurrentRace(e)) {
+					current = &e;
+				}
+			}
+			return current;
+		}
+
+		void RaceText(ImU32 a_color, const std::string& a_text)
+		{
+			Drawn::TextColored(ToVec4(a_color), "%s", a_text.c_str());
+		}
+
+		void RaceSection(float a_u, const char* a_title)
+		{
+			im::Dummy({ 1.0f, a_u * 0.2f });
+			W::SectionTitle(a_title);
+		}
+
+		const char* RaceKindTitle(RaceSpellKind a_kind)
+		{
+			switch (a_kind) {
+			case RaceSpellKind::Passive:
+				return TR("RMA_RaceInfoPassive", "Passive abilities");
+			case RaceSpellKind::Power:
+				return TR("RMA_RaceInfoPowers", "Powers (once a day)");
+			case RaceSpellKind::LesserPower:
+				return TR("RMA_RaceInfoLesserPowers", "Lesser powers (at will)");
+			case RaceSpellKind::Shout:
+				return TR("RMA_RaceInfoShouts", "Shouts");
+			case RaceSpellKind::Spell:
+				return TR("RMA_RaceInfoSpells", "Starting spells");
+			default:
+				return TR("RMA_RaceInfoOther", "Other effects");
+			}
+		}
+
+		// Holds no controller stop: the highlight stays on the race tiles, and the right stick scrolls this panel from there
+		// (its x still turns the character). The mouse wheel scrolls it as any list.
+		void RenderRacePanel(Model& a_model, ImVec2 a_size)
+		{
+			PushNoNav();
+			im::BeginChild("##RMA.RacePanel", a_size, ImGuiMCP::ImGuiChildFlags_Border, ImGuiMCP::ImGuiWindowFlags_NoNav);
+			ApplyFont();
+			if (im::IsWindowFocused()) {
+				s.rootFocused = true;  // after a click here the D-pad goes back to the last column, as from the editor itself
+			}
+			const float u = U();
+			const auto* entry = RacePanelEntry(a_model);
+			if (const auto key = entry ? entry->key : std::string(); key != s.raceScrolledFor) {
+				s.raceScrolledFor = key;
+				im::SetScrollY(0.0f);
+			}
+			const float stickX = g_rightStickX.load(std::memory_order_relaxed);
+			const float stickY = g_rightStickY.load(std::memory_order_relaxed);
+			constexpr float deadzone = 0.15f;
+			if (std::fabs(stickY) > deadzone && std::fabs(stickY) > std::fabs(stickX) && !AnyPopupOpen() && !im::IsAnyItemActive()) {
+				if (!s.raceScrollingLast) {
+					s.raceStickScroll = im::GetScrollY();
+				}
+				s.raceScrolling = true;
+				const float sign = stickY > 0.0f ? -1.0f : 1.0f;  // stick up: towards the top
+				const float tilt = std::min((std::fabs(stickY) - deadzone) / (1.0f - deadzone), 1.0f);
+				s.raceStickScroll = std::clamp(s.raceStickScroll + sign * tilt * u * 16.0f * im::GetIO()->DeltaTime, 0.0f, im::GetScrollMaxY());
+				im::SetScrollY(s.raceStickScroll);
+			}
+			s.raceScrollingLast = s.raceScrolling;
+			if (s.raceDriveScroll != 0.0f) {
+				im::SetScrollY(im::GetScrollY() + s.raceDriveScroll);
+				s.raceDriveScroll = 0.0f;
+			}
+			s.racePanelShown = true;
+			s.raceScrollY = im::GetScrollY();
+			s.raceScrollMaxY = im::GetScrollMaxY();
+
+			if (entry) {
+				const auto  it = a_model.raceInfo.find(entry->key);
+				const auto* info = it == a_model.raceInfo.end() ? nullptr : &it->second;
+				if (s.raceScrollMaxY > 0.0f) {
+					// the prompt stays in the panel's top corner while its text scrolls
+					const char* hint = TR("RMA_RaceInfoScroll", "Right stick scrolls");
+					const auto  size = W::SmallTextSize(hint, 0.75f);
+					const auto  pos = im::GetWindowPos();
+					W::SmallText(im::GetWindowDrawList(), { pos.x + im::GetWindowWidth() - size.x - u * 1.2f, pos.y + u * 0.35f }, Color::TextFaint, hint, 0.75f);
+				}
+				RaceText(Color::GoldBright, entry->label);
+				im::PushTextWrapPos(0.0f);
+				const auto& description = info ? info->description : entry->description;
+				if (description.empty()) {
+					RaceText(Color::TextFaint, TR("RMA_RaceInfoNoDescription", "This race has no description."));
+				} else {
+					RaceText(Color::Text, description);
+				}
+				if (info) {
+					if (!info->attributes.empty()) {
+						RaceSection(u, TR("RMA_RaceInfoAttributes", "Starting attributes"));
+						RaceText(Color::TextDim, info->attributes);
+					}
+					if (!info->skills.empty()) {
+						RaceSection(u, TR("RMA_RaceInfoSkills", "Skill bonuses"));
+						RaceText(Color::TextDim, info->skills);
+					}
+					bool first = true;
+					auto last = RaceSpellKind::Passive;
+					for (const auto& spell : info->spells) {
+						if (first || spell.kind != last) {
+							RaceSection(u, RaceKindTitle(spell.kind));
+							first = false;
+							last = spell.kind;
+						}
+						RaceText(Color::GoldBright, spell.name);
+						if (!spell.description.empty()) {
+							RaceText(Color::TextDim, spell.description);
+						}
+					}
+				}
+				im::PopTextWrapPos();
+			}
+			im::EndChild();
+			PopNoNav();
+		}
+
 		void RenderFooter(Model& a_model)
 		{
 			const float u = U();
@@ -2259,9 +2433,25 @@ namespace RMA::UI
 			const float footerH = im::GetFrameHeight() + im::GetStyle()->ItemSpacing.y;
 			const auto  avail = im::GetContentRegionAvail();
 			const float railW = std::floor(std::clamp(avail.x * 0.3f, u * 6.5f, u * 10.0f));
+			const float leftX = im::GetCursorScreenPos().x;
 			RenderCategories(a_model, { railW, avail.y - footerH });
 			im::SameLine(0.0f, u * 0.5f);
-			RenderList(a_model, { 0.0f, avail.y - footerH });
+			s.racePanelShown = false;
+			s.raceScrolling = false;
+			if (ShowRacePanel()) {
+				// 1.2.0 (the owner, 2026-11-05): the bottom half of the race area says what the highlighted race is
+				const auto  top = im::GetCursorScreenPos();
+				const float areaW = im::GetContentRegionAvail().x;
+				const float total = avail.y - footerH;
+				const float gap = std::floor(u * 0.4f);
+				const float listH = std::floor((total - gap) * 0.5f);
+				RenderList(a_model, { areaW, listH });
+				im::SetCursorScreenPos({ top.x, top.y + listH + gap });
+				RenderRacePanel(a_model, { areaW, total - gap - listH });
+				im::SetCursorScreenPos({ leftX, top.y + total + im::GetStyle()->ItemSpacing.y });
+			} else {
+				RenderList(a_model, { 0.0f, avail.y - footerH });
+			}
 			RenderFooter(a_model);
 
 			HeadPartBrowser(a_model);
@@ -2644,7 +2834,7 @@ namespace RMA::UI
 			if (!im::IsAnyItemActive()) {
 				constexpr float deadzone = 0.15f;
 				const float     x = g_rightStickX.load(std::memory_order_relaxed);
-				if (std::fabs(x) > deadzone) {
+				if (std::fabs(x) > deadzone && !s.raceScrolling) {
 					const float sign = x > 0.0f ? 1.0f : -1.0f;
 					const float tilt = (std::fabs(x) - deadzone) / (1.0f - deadzone);
 					Bridge::Rotate(sign * std::min(tilt, 1.0f) * 110.0f * dt);
@@ -2736,6 +2926,40 @@ namespace RMA::UI
 		for (const auto& c : model.categories) {
 			if (Text::Lower(c.label) == want || Text::Lower(c.raw) == want) {
 				SelectCategory(&c);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	std::string RacePanelState()
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		const auto*      entry = RacePanelEntry(model);
+		return std::format("{{\"shown\":{},\"highlight_seen\":{},\"is_current_race\":{},\"scrollY\":{},\"scrollMaxY\":{}}}", s.racePanelShown, !s.raceInfoKey.empty(),
+			entry && model.IsCurrentRace(*entry), s.raceScrollY, s.raceScrollMaxY);
+	}
+
+	std::string RacePanelLabel()
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		const auto*      entry = RacePanelEntry(model);
+		return entry ? entry->label : std::string();
+	}
+
+	bool RacePanelDrive(const std::string& a_race, float a_scroll)
+	{
+		auto&            model = Model::Get();
+		std::scoped_lock lock(model.mutex);
+		s.raceDriveScroll += a_scroll;
+		if (a_race.empty()) {
+			return true;
+		}
+		for (const auto& e : model.entries) {
+			if (e.control == Control::Race && (e.label == a_race || e.text == a_race)) {
+				s.raceInfoKey = e.key;
 				return true;
 			}
 		}
@@ -2883,6 +3107,7 @@ namespace RMA::UI
 				const auto* stick = static_cast<const RE::ThumbstickEvent*>(a_event);
 				if (stick->IsRight()) {
 					g_rightStickX.store(stick->xValue, std::memory_order_relaxed);
+					g_rightStickY.store(stick->yValue, std::memory_order_relaxed);
 					return false;
 				}
 				// the left stick is the editor's window switch while it holds the input, and the game's otherwise

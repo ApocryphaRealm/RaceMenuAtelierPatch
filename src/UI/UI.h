@@ -27,4 +27,10 @@ namespace RMA::UI
 	// the three option values and the last DevBench nudge (JSON)
 	[[nodiscard]] std::string Options();
 	[[nodiscard]] std::string TypedText(const std::string& a_field);
+
+	// DevBench (1.2.0, op=racepanel): whether the race panel is up and how far it scrolls (JSON), the race it shows, and
+	// show a race / scroll it by pixels on the next frame, as the highlight and the right stick do; lock-safe
+	[[nodiscard]] std::string RacePanelState();
+	[[nodiscard]] std::string RacePanelLabel();
+	bool          RacePanelDrive(const std::string& a_race, float a_scroll);
 }

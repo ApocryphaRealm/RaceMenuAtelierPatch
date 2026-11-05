@@ -548,6 +548,7 @@ namespace RMA
 			list.clear();
 		}
 		byKey.clear();
+		raceInfo.clear();  // read afresh each time the menu opens
 		hasData = false;
 		++dataEpoch;
 		past.clear();
